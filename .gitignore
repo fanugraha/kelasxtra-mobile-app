@@ -1,0 +1,16 @@
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+*.iml
+*.g.dart
+*.freezed.dart
+ios/Flutter/.last_build_id
+/android/.gradle
+.idea/
+.vscode/
+*.lock
+!pubspec.lock

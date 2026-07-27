@@ -1,0 +1,232 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../../core/theme/app_theme.dart';
+import '../providers/auth_provider.dart';
+
+class LoginScreen extends ConsumerStatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends ConsumerState<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+
+  bool _isSubmitting = false;
+  String? _errorMessage;
+  bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    _passwordCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isSubmitting = true;
+      _errorMessage = null;
+    });
+
+    final error = await ref.read(authNotifierProvider.notifier).login(
+          email: _emailCtrl.text.trim(),
+          password: _passwordCtrl.text,
+        );
+
+    if (!mounted) return;
+    setState(() {
+      _isSubmitting = false;
+      _errorMessage = error;
+    });
+
+    // Kalau sukses (error == null), redirect otomatis ditangani GoRouter
+    // lewat listener ke authNotifierProvider (lihat app_router.dart).
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 16),
+
+                // Logo kecil, center, flat — no gradient hero.
+                Center(
+                  child: Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: AppColors.brand500,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text(
+                      'X',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 26,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                Text(
+                  'Masuk ke Xtracademy',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.neutral900,
+                      ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Lanjutkan persiapan CPNS-mu hari ini.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.neutral500, fontSize: 14),
+                ),
+                const SizedBox(height: 32),
+
+                if (_errorMessage != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.danger50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.danger100),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.error_outline, color: AppColors.danger600, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: const TextStyle(color: AppColors.danger700, fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                TextFormField(
+                  controller: _emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    hintText: 'nama@email.com',
+                    prefixIcon: Icon(Icons.mail_outline, color: AppColors.neutral400),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Email wajib diisi';
+                    if (!v.contains('@')) return 'Format email tidak valid';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: _passwordCtrl,
+                  obscureText: _obscurePassword,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outline, color: AppColors.neutral400),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        color: AppColors.neutral400,
+                      ),
+                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                    ),
+                  ),
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Password wajib diisi';
+                    return null;
+                  },
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => context.push('/forgot-password'),
+                    child: const Text('Lupa password?'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                FilledButton(
+                  onPressed: _isSubmitting ? null : _submit,
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation(Colors.white),
+                          ),
+                        )
+                      : const Text('Masuk'),
+                ),
+                const SizedBox(height: 24),
+
+                Row(
+                  children: [
+                    const Expanded(child: Divider(color: AppColors.neutral200)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('atau', style: TextStyle(color: AppColors.neutral400, fontSize: 12)),
+                    ),
+                    const Expanded(child: Divider(color: AppColors.neutral200)),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // TODO: tombol "Masuk dengan Google" -> panggil
+                // ref.read(authNotifierProvider.notifier).loginWithGoogle(idToken)
+                // idToken didapat dari package google_sign_in.
+                OutlinedButton.icon(
+                  onPressed: null,
+                  icon: const Icon(Icons.g_mobiledata, size: 24, color: AppColors.neutral400),
+                  label: const Text('Masuk dengan Google'),
+                ),
+                const SizedBox(height: 28),
+
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    const Text(
+                      'Belum punya akun?',
+                      style: TextStyle(color: AppColors.neutral600, fontSize: 13),
+                    ),
+                    TextButton(
+                      onPressed: () => context.push('/register'),
+                      child: const Text('Daftar sekarang'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
