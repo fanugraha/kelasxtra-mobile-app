@@ -22,6 +22,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isGoogleLoading = false;
   String? _errorMessage;
   bool _obscurePassword = true;
+  bool _isResendingVerification = false;
+  String? _resendFeedback;
+
+  /// Heuristik deteksi pesan 422 "email belum diverifikasi" dari backend --
+  /// lihat catatan OpenAPI di /auth/login. Backend belum punya kode error
+  /// terstruktur (cuma `message` bebas), jadi deteksi berbasis substring.
+  bool get _looksLikeUnverifiedEmailError {
+    final msg = _errorMessage?.toLowerCase() ?? '';
+    return msg.contains('verifikasi') || msg.contains('verified');
+  }
 
   @override
   void dispose() {
@@ -36,6 +46,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
+      _resendFeedback = null;
     });
 
     final error = await ref.read(authNotifierProvider.notifier).login(
@@ -51,6 +62,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     // Kalau sukses (error == null), redirect otomatis ditangani GoRouter
     // lewat listener ke authNotifierProvider (lihat app_router.dart).
+  }
+
+  Future<void> _resendVerification() async {
+    setState(() {
+      _isResendingVerification = true;
+      _resendFeedback = null;
+    });
+
+    final error = await ref
+        .read(authNotifierProvider.notifier)
+        .resendVerificationEmail(_emailCtrl.text.trim());
+
+    if (!mounted) return;
+    setState(() {
+      _isResendingVerification = false;
+      _resendFeedback = error ?? 'Email verifikasi baru sudah dikirim.';
+    });
   }
 
   Future<void> _handleGoogleSignIn() async {
@@ -157,17 +185,54 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: AppColors.danger100),
                     ),
-                    child: Row(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.error_outline, color: AppColors.danger600, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: const TextStyle(color: AppColors.danger700, fontSize: 13),
-                          ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.error_outline, color: AppColors.danger600, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _errorMessage!,
+                                style: const TextStyle(color: AppColors.danger700, fontSize: 13),
+                              ),
+                            ),
+                          ],
                         ),
+                        if (_looksLikeUnverifiedEmailError) ...[
+                          const SizedBox(height: 10),
+                          if (_resendFeedback != null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: Text(
+                                _resendFeedback!,
+                                style: const TextStyle(color: AppColors.danger700, fontSize: 12),
+                              ),
+                            ),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton(
+                              onPressed: _isResendingVerification ? null : _resendVerification,
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: _isResendingVerification
+                                  ? const SizedBox(
+                                      height: 14,
+                                      width: 14,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : const Text(
+                                      'Kirim ulang email verifikasi',
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                    ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

@@ -113,12 +113,13 @@ class BerandaApiService {
 
   /// GET /notifications/unread-count
   ///
-  /// ASUMSI belum diverifikasi: key response `unread_count`. Kalau
-  /// ternyata `count` atau nama lain, sesuaikan baris di bawah.
+  /// KONFIRMASI dari OpenAPI spec + response asli: key-nya `count`,
+  /// bukan `unread_count` (asumsi awal salah -- badge notifikasi di
+  /// header selalu 0 sebelum fix ini, walau backend punya data).
   Future<int> getUnreadNotificationCount() async {
     final response = await _dio.get('/notifications/unread-count');
     final data = response.data as Map<String, dynamic>;
-    return data['unread_count'] as int? ?? 0;
+    return data['count'] as int? ?? 0;
   }
 }
 
