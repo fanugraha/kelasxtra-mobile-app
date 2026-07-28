@@ -1,11 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../data/models/user_model.dart';
 import '../providers/auth_provider.dart';
 
+/// Layar 1 — Pilihan Masuk.
+///
+/// Redesign v3: "big brand" onboarding — brand mark jadi anchor visual
+/// utama (bukan sekadar ikon kecil di pojok), dengan wordmark di
+/// bawahnya supaya identitas Kelasxtra langsung terasa begitu layar
+/// dibuka — pola yang dipakai Gojek/Tiket.com/Traveloka di layar
+/// pertama onboarding mereka. Sisanya tetap restrained: satu warna
+/// aksen, tipografi jelas, whitespace lega, tanpa ornamen dekoratif
+/// yang tidak fungsional.
+///
+/// Google sign-in ditonjolkan sebagai jalur utama (instan, tanpa verifikasi
+/// email — lihat AuthController::loginWithGoogle di backend). Daftar manual
+/// jadi fallback yang membawa user ke wizard 2 step (RegisterFormScreen).
+///
+/// CATATAN INTEGRASI: layar ini mengasumsikan authNotifierProvider.notifier
+/// punya method `loginWithGoogle({required String credential})` yang
+/// mem-POST ke /auth/google dan me-return String? error (null = sukses).
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
@@ -13,258 +30,343 @@ class RegisterScreen extends ConsumerStatefulWidget {
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends ConsumerState<RegisterScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
-  final _passwordCtrl = TextEditingController();
-  final _passwordConfirmCtrl = TextEditingController();
-
-  LevelPendidikan? _selectedLevel;
-  bool _isSubmitting = false;
+class _RegisterScreenState extends ConsumerState<RegisterScreen>
+    with SingleTickerProviderStateMixin {
+  bool _isGoogleLoading = false;
   String? _errorMessage;
-  bool _obscurePassword = true;
-  bool _obscurePasswordConfirm = true;
+
+  late final AnimationController _entrance;
+  late final Animation<double> _fade;
+  late final Animation<Offset> _slide;
+
+  static const _stats = [
+    (icon: Icons.edit_note_outlined, label: 'Latihan Soal'),
+    (icon: Icons.emoji_events_outlined, label: 'Try Out'),
+    (icon: Icons.insights_outlined, label: 'Analisis Nilai'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _entrance = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
+    _fade = CurvedAnimation(parent: _entrance, curve: Curves.easeOut);
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.03),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _entrance, curve: Curves.easeOutCubic));
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (MediaQuery.of(context).disableAnimations) {
+        _entrance.value = 1;
+      } else {
+        _entrance.forward();
+      }
+    });
+  }
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
-    _emailCtrl.dispose();
-    _phoneCtrl.dispose();
-    _passwordCtrl.dispose();
-    _passwordConfirmCtrl.dispose();
+    _entrance.dispose();
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-
+  Future<void> _handleGoogleSignIn() async {
     setState(() {
-      _isSubmitting = true;
+      _isGoogleLoading = true;
       _errorMessage = null;
     });
 
-    final error = await ref.read(authNotifierProvider.notifier).register(
-          name: _nameCtrl.text.trim(),
-          email: _emailCtrl.text.trim(),
-          password: _passwordCtrl.text,
-          passwordConfirmation: _passwordConfirmCtrl.text,
-          phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
-          levelPendidikan: _selectedLevel?.name,
-        );
+    try {
+      final googleSignIn = GoogleSignIn(scopes: const ['email', 'profile']);
+      final account = await googleSignIn.signIn();
+      if (account == null) {
+        setState(() => _isGoogleLoading = false);
+        return;
+      }
 
-    if (!mounted) return;
-    setState(() {
-      _isSubmitting = false;
-      _errorMessage = error;
-    });
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null) {
+        setState(() {
+          _isGoogleLoading = false;
+          _errorMessage = 'Gagal mengambil token dari Google. Coba lagi.';
+        });
+        return;
+      }
 
-    if (error == null) {
-      // Registrasi berhasil TAPI user belum login otomatis — backend
-      // mengirim email verifikasi dan login baru bisa dilakukan setelah
-      // email diverifikasi. Arahkan ke layar "cek email".
-      if (mounted) context.push('/check-email', extra: _emailCtrl.text.trim());
+      final error = await ref
+          .read(authNotifierProvider.notifier)
+          .loginWithGoogle(idToken);
+
+      if (!mounted) return;
+      setState(() {
+        _isGoogleLoading = false;
+        _errorMessage = error;
+      });
+
+      if (error == null) {
+        context.go('/home');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isGoogleLoading = false;
+        _errorMessage = 'Tidak bisa terhubung ke Google. Periksa koneksi kamu.';
+      });
     }
-  }
-
-  Widget _sectionLabel(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12, top: 4),
-      child: Text(
-        text.toUpperCase(),
-        style: const TextStyle(
-          color: AppColors.neutral400,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.6,
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-          onPressed: () => context.pop(),
-        ),
-      ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-          child: Form(
-            key: _formKey,
-            child: ListView(
-              children: [
-                Text(
-                  'Buat Akun Baru',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.neutral900,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Isi datamu untuk mulai belajar di Xtracademy.',
-                  style: TextStyle(color: AppColors.neutral500, fontSize: 13),
-                ),
-                const SizedBox(height: 24),
-                if (_errorMessage != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: InkWell(
+                  onTap: () => context.pop(),
+                  customBorder: const CircleBorder(),
+                  child: Container(
+                    width: 40,
+                    height: 40,
                     decoration: BoxDecoration(
-                      color: AppColors.danger50,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: AppColors.danger100),
+                      color: AppColors.neutral100,
+                      shape: BoxShape.circle,
                     ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.arrow_back_ios_new,
+                      size: 16,
+                      color: AppColors.neutral700,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(28, 4, 28, 28),
+                child: FadeTransition(
+                  opacity: _fade,
+                  child: SlideTransition(
+                    position: _slide,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Icon(Icons.error_outline, color: AppColors.danger600, size: 20),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: const TextStyle(color: AppColors.danger700, fontSize: 13),
+                        const SizedBox(height: 24),
+
+                        Text(
+                          'Siap lolos seleksi CPNS?',
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.neutral900,
+                                height: 1.2,
+                                letterSpacing: -0.3,
+                              ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Buat akun untuk mulai latihan soal & try out.',
+                          style: TextStyle(
+                            color: AppColors.neutral500,
+                            fontSize: 14.5,
+                            height: 1.4,
                           ),
+                        ),
+                        const SizedBox(height: 32),
+
+                        // --- Strip nilai jual, dengan ikon berbingkai lembut ---
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            for (final stat in _stats)
+                              Expanded(child: _StatChip(stat: stat)),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+
+                        if (_errorMessage != null) ...[
+                          _ErrorBanner(message: _errorMessage!),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // ---- Jalur utama: Google ----
+                        SizedBox(
+                          height: 54,
+                          child: OutlinedButton.icon(
+                            onPressed: _isGoogleLoading ? null : _handleGoogleSignIn,
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              side: const BorderSide(color: AppColors.neutral200),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                            ),
+                            icon: _isGoogleLoading
+                                ? const SizedBox(
+                                    height: 18,
+                                    width: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : Image.asset('assets/icons/google_logo.png', height: 20),
+                            label: Text(
+                              _isGoogleLoading ? 'Menghubungkan...' : 'Lanjutkan dengan Google',
+                              style: const TextStyle(
+                                color: AppColors.neutral900,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: const [
+                            Expanded(child: Divider(color: AppColors.neutral200)),
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 14),
+                              child: Text(
+                                'atau',
+                                style: TextStyle(color: AppColors.neutral400, fontSize: 12),
+                              ),
+                            ),
+                            Expanded(child: Divider(color: AppColors.neutral200)),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        // ---- Fallback: daftar manual via email ----
+                        SizedBox(
+                          height: 54,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColors.brand500.withOpacity(0.28),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: FilledButton(
+                              onPressed: () => context.push('/register/form'),
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.brand500,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: const Text(
+                                'Daftar dengan Email',
+                                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            const Text(
+                              'Sudah punya akun?',
+                              style: TextStyle(color: AppColors.neutral600, fontSize: 13),
+                            ),
+                            TextButton(
+                              onPressed: () => context.pop(),
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.brand600,
+                              ),
+                              child: const Text(
+                                'Masuk',
+                                style: TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                ],
-                _sectionLabel('Data diri'),
-                TextFormField(
-                  controller: _nameCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Nama lengkap',
-                    prefixIcon: Icon(Icons.person_outline, color: AppColors.neutral400),
-                  ),
-                  validator: (v) => (v == null || v.trim().isEmpty) ? 'Nama wajib diisi' : null,
                 ),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: _emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    hintText: 'nama@email.com',
-                    prefixIcon: Icon(Icons.mail_outline, color: AppColors.neutral400),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Email wajib diisi';
-                    if (!v.contains('@')) return 'Format email tidak valid';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: _phoneCtrl,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    labelText: 'No. HP (opsional)',
-                    prefixIcon: Icon(Icons.phone_outlined, color: AppColors.neutral400),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                DropdownButtonFormField<LevelPendidikan>(
-                  value: _selectedLevel,
-                  decoration: const InputDecoration(
-                    labelText: 'Jenjang pendidikan (opsional)',
-                    prefixIcon: Icon(Icons.school_outlined, color: AppColors.neutral400),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: LevelPendidikan.sd, child: Text('SD')),
-                    DropdownMenuItem(value: LevelPendidikan.smp, child: Text('SMP')),
-                    DropdownMenuItem(value: LevelPendidikan.sma, child: Text('SMA')),
-                    DropdownMenuItem(value: LevelPendidikan.mahasiswa, child: Text('Mahasiswa')),
-                    DropdownMenuItem(value: LevelPendidikan.umum, child: Text('Umum')),
-                  ],
-                  onChanged: (v) => setState(() => _selectedLevel = v),
-                ),
-                const SizedBox(height: 24),
-                _sectionLabel('Keamanan akun'),
-                TextFormField(
-                  controller: _passwordCtrl,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    helperText: 'Minimal 8 karakter',
-                    helperStyle: const TextStyle(color: AppColors.neutral400, fontSize: 12),
-                    prefixIcon: const Icon(Icons.lock_outline, color: AppColors.neutral400),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                        color: AppColors.neutral400,
-                      ),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                    ),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Password wajib diisi';
-                    if (v.length < 8) return 'Minimal 8 karakter';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: _passwordConfirmCtrl,
-                  obscureText: _obscurePasswordConfirm,
-                  decoration: InputDecoration(
-                    labelText: 'Konfirmasi password',
-                    prefixIcon: const Icon(Icons.lock_outline, color: AppColors.neutral400),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePasswordConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                        color: AppColors.neutral400,
-                      ),
-                      onPressed: () => setState(() => _obscurePasswordConfirm = !_obscurePasswordConfirm),
-                    ),
-                  ),
-                  validator: (v) {
-                    if (v != _passwordCtrl.text) return 'Konfirmasi password tidak cocok';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 28),
-                FilledButton(
-                  onPressed: _isSubmitting ? null : _submit,
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation(Colors.white),
-                          ),
-                        )
-                      : const Text('Daftar'),
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  alignment: WrapAlignment.center,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    const Text(
-                      'Sudah punya akun?',
-                      style: TextStyle(color: AppColors.neutral600, fontSize: 13),
-                    ),
-                    TextButton(
-                      onPressed: () => context.pop(),
-                      child: const Text('Masuk'),
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Satu item nilai jual dalam strip — ikon dibungkus lingkaran lembut
+/// bertone brand, meniru pola "feature highlight" onboarding brand besar.
+class _StatChip extends StatelessWidget {
+  final ({IconData icon, String label}) stat;
+  const _StatChip({required this.stat});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: AppColors.brand500.withOpacity(0.08),
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Icon(stat.icon, size: 20, color: AppColors.brand600),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          stat.label,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: AppColors.neutral600,
+            height: 1.2,
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  final String message;
+  const _ErrorBanner({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.danger50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.danger100),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline, color: AppColors.danger600, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(message, style: const TextStyle(color: AppColors.danger700, fontSize: 13)),
+          ),
+        ],
       ),
     );
   }

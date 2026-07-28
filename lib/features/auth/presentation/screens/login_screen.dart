@@ -203,7 +203,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 // idToken didapat dari package google_sign_in.
                 OutlinedButton.icon(
                   onPressed: null,
-                  icon: const Icon(Icons.g_mobiledata, size: 24, color: AppColors.neutral400),
+                  icon: Image.asset('assets/icons/google_logo.png', height: 20),
                   label: const Text('Masuk dengan Google'),
                 ),
                 const SizedBox(height: 28),

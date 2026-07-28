@@ -91,6 +91,26 @@ class AuthNotifier extends _$AuthNotifier {
     }
   }
 
+  /// Return null kalau sukses, atau pesan error kalau gagal.
+  Future<String?> forgotPassword(String email) async {
+    try {
+      await ref.read(authRepositoryProvider).forgotPassword(email);
+      return null;
+    } on ApiException catch (e) {
+      return e.message;
+    }
+  }
+
+  /// Return null kalau sukses, atau pesan error kalau gagal.
+  Future<String?> resendVerificationEmail(String email) async {
+    try {
+      await ref.read(authRepositoryProvider).resendVerificationEmail(email);
+      return null;
+    } on ApiException catch (e) {
+      return e.message;
+    }
+  }
+
   Future<void> refreshCurrentUser() async {
     // Pakai maybeWhen (bukan cek tipe private _Authenticated) karena
     // konstruktor freezed bersifat library-private terhadap file ini.

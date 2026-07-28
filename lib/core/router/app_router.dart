@@ -6,7 +6,10 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
+import '../../features/auth/presentation/screens/register_form_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
+import '../../features/auth/presentation/screens/forgot_password_screen.dart';
+import '../../features/auth/presentation/screens/check_email_screen.dart';
 // TODO: import screen beranda saat modul beranda/katalog sudah dibuat.
 
 part 'app_router.g.dart';
@@ -31,12 +34,20 @@ GoRouter goRouter(GoRouterRef ref) {
       final loc = state.matchedLocation;
 
       final isSplash = loc == '/splash';
-      final isAuthRoute = loc == '/login' || loc == '/register' || loc.startsWith('/forgot-password');
+      // '/register/form' & '/check-email' ikut dianggap bagian dari alur
+      // auth yang belum-login, supaya redirect tidak menendang user keluar
+      // di tengah proses registrasi.
+      final isAuthRoute = loc == '/login' ||
+          loc == '/register' ||
+          loc == '/register/form' ||
+          loc == '/check-email' ||
+          loc.startsWith('/forgot-password');
 
       return authState.when(
         unknown: () => isSplash ? null : '/splash',
         unauthenticated: () {
-          if (isSplash || isAuthRoute || loc == '/check-email') return isSplash ? '/login' : null;
+          if (isSplash) return '/login';
+          if (isAuthRoute) return null;
           return '/login';
         },
         authenticated: (_) {
@@ -50,15 +61,19 @@ GoRouter goRouter(GoRouterRef ref) {
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/register', builder: (_, __) => const RegisterScreen()),
       GoRoute(
+        path: '/register/form',
+        builder: (_, __) => const RegisterFormScreen(),
+      ),
+      GoRoute(
         path: '/check-email',
         builder: (context, state) {
           final email = state.extra as String? ?? '';
-          return _CheckEmailPlaceholder(email: email);
+          return CheckEmailScreen(email: email);
         },
       ),
       GoRoute(
         path: '/forgot-password',
-        builder: (_, __) => const _NotImplementedPlaceholder(title: 'Lupa Password'),
+        builder: (_, __) => const ForgotPasswordScreen(),
       ),
       // TODO: ganti dengan HomeScreen sungguhan dari modul beranda.
       GoRoute(
@@ -67,24 +82,6 @@ GoRouter goRouter(GoRouterRef ref) {
       ),
     ],
   );
-}
-
-class _CheckEmailPlaceholder extends StatelessWidget {
-  const _CheckEmailPlaceholder({required this.email});
-  final String email;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Cek Email Anda')),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text('Link verifikasi sudah dikirim ke $email. Silakan cek inbox/spam.'),
-        ),
-      ),
-    );
-  }
 }
 
 class _NotImplementedPlaceholder extends StatelessWidget {
