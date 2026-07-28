@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
@@ -18,6 +19,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordCtrl = TextEditingController();
 
   bool _isSubmitting = false;
+  bool _isGoogleLoading = false;
   String? _errorMessage;
   bool _obscurePassword = true;
 
@@ -51,6 +53,51 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // lewat listener ke authNotifierProvider (lihat app_router.dart).
   }
 
+  Future<void> _handleGoogleSignIn() async {
+    setState(() {
+      _isGoogleLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final googleSignIn = GoogleSignIn(scopes: const ['email', 'profile']);
+      final account = await googleSignIn.signIn();
+      if (account == null) {
+        setState(() => _isGoogleLoading = false);
+        return;
+      }
+
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null) {
+        setState(() {
+          _isGoogleLoading = false;
+          _errorMessage = 'Gagal mengambil token dari Google. Coba lagi.';
+        });
+        return;
+      }
+
+      final error = await ref
+          .read(authNotifierProvider.notifier)
+          .loginWithGoogle(idToken);
+
+      if (!mounted) return;
+      setState(() {
+        _isGoogleLoading = false;
+        _errorMessage = error;
+      });
+
+      // Kalau sukses, redirect otomatis ditangani GoRouter lewat
+      // listener ke authNotifierProvider — sama seperti alur _submit().
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isGoogleLoading = false;
+        _errorMessage = 'Tidak bisa terhubung ke Google. Periksa koneksi kamu.';
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -65,7 +112,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               children: [
                 const SizedBox(height: 16),
 
-                // Logo kecil, center, flat — no gradient hero.
                 Center(
                   child: Container(
                     width: 56,
@@ -76,7 +122,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     alignment: Alignment.center,
                     child: const Text(
-                      'X',
+                      'K',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -88,7 +134,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 32),
 
                 Text(
-                  'Masuk ke Xtracademy',
+                  'Masuk ke KelasXtra',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
@@ -198,13 +244,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // TODO: tombol "Masuk dengan Google" -> panggil
-                // ref.read(authNotifierProvider.notifier).loginWithGoogle(idToken)
-                // idToken didapat dari package google_sign_in.
                 OutlinedButton.icon(
-                  onPressed: null,
-                  icon: Image.asset('assets/icons/google_logo.png', height: 20),
-                  label: const Text('Masuk dengan Google'),
+                  onPressed: _isGoogleLoading ? null : _handleGoogleSignIn,
+                  icon: _isGoogleLoading
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Image.asset('assets/icons/google_logo.png', height: 20),
+                  label: Text(_isGoogleLoading ? 'Menghubungkan...' : 'Masuk dengan Google'),
                 ),
                 const SizedBox(height: 28),
 
