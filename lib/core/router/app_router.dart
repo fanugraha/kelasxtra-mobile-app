@@ -10,12 +10,10 @@ import '../../features/auth/presentation/screens/register_form_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/check_email_screen.dart';
-// TODO: import screen beranda saat modul beranda/katalog sudah dibuat.
+import '../../features/shell/presentation/screens/app_shell.dart';
 
 part 'app_router.g.dart';
 
-/// Notifier kecil yang cuma bertugas "membangunkan" GoRouter tiap kali
-/// authNotifierProvider berubah, supaya redirect logic dievaluasi ulang.
 class _RouterRefreshNotifier extends ChangeNotifier {
   _RouterRefreshNotifier(Ref ref) {
     ref.listen(authNotifierProvider, (_, __) => notifyListeners());
@@ -34,9 +32,6 @@ GoRouter goRouter(GoRouterRef ref) {
       final loc = state.matchedLocation;
 
       final isSplash = loc == '/splash';
-      // '/register/form' & '/check-email' ikut dianggap bagian dari alur
-      // auth yang belum-login, supaya redirect tidak menendang user keluar
-      // di tengah proses registrasi.
       final isAuthRoute = loc == '/login' ||
           loc == '/register' ||
           loc == '/register/form' ||
@@ -75,24 +70,7 @@ GoRouter goRouter(GoRouterRef ref) {
         path: '/forgot-password',
         builder: (_, __) => const ForgotPasswordScreen(),
       ),
-      // TODO: ganti dengan HomeScreen sungguhan dari modul beranda.
-      GoRoute(
-        path: '/home',
-        builder: (_, __) => const _NotImplementedPlaceholder(title: 'Beranda'),
-      ),
+      GoRoute(path: '/home', builder: (_, __) => const AppShell()),
     ],
   );
-}
-
-class _NotImplementedPlaceholder extends StatelessWidget {
-  const _NotImplementedPlaceholder({required this.title});
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(child: Text('$title — belum diimplementasikan.')),
-    );
-  }
 }
