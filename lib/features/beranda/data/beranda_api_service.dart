@@ -82,7 +82,7 @@ class BerandaApiService {
         if (programId != null) 'program_id': programId,
       },
     );
-    return PerformanceSummary.fromJson(response.data as Map<String, dynamic>);
+    return PerformanceSummary.fromJson(sanitizePerformanceSummaryJson(response.data as Map<String, dynamic>));
   }
 
   /// GET /my-subscription
