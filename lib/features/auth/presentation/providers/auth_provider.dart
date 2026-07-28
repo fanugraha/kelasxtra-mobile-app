@@ -111,6 +111,53 @@ class AuthNotifier extends _$AuthNotifier {
     }
   }
 
+  /// PUT /auth/profile. Sukses -> state langsung diperbarui dengan user
+  /// terbaru dari response (bukan cuma field yang diedit), supaya nama di
+  /// Beranda/Akun langsung sinkron tanpa perlu refreshCurrentUser() terpisah.
+  /// Return null kalau sukses, atau pesan error kalau gagal.
+  Future<String?> updateProfile({
+    required String name,
+    String? phone,
+    String? levelPendidikan,
+  }) async {
+    try {
+      final user = await ref.read(authRepositoryProvider).updateProfile(
+            name: name,
+            phone: phone,
+            levelPendidikan: levelPendidikan,
+          );
+      state = AuthState.authenticated(user);
+      return null;
+    } on ApiException catch (e) {
+      return e.message;
+    }
+  }
+
+  /// PUT /auth/password.
+  /// TODO: belum dicek ke server nyata apakah sukses ganti password ikut
+  /// merevoke token Sanctum yang sedang dipakai request ini (beberapa
+  /// setup Laravel melakukan itu). Kalau iya, request berikutnya akan
+  /// 401 dan otomatis logout lewat unauthorizedSignalProvider di atas --
+  /// UI ganti_password_screen.dart saat ini cuma menampilkan snackbar
+  /// sukses generik, belum menangani kemungkinan itu secara eksplisit.
+  /// Return null kalau sukses, atau pesan error kalau gagal.
+  Future<String?> changePassword({
+    required String currentPassword,
+    required String password,
+    required String passwordConfirmation,
+  }) async {
+    try {
+      await ref.read(authRepositoryProvider).changePassword(
+            currentPassword: currentPassword,
+            password: password,
+            passwordConfirmation: passwordConfirmation,
+          );
+      return null;
+    } on ApiException catch (e) {
+      return e.message;
+    }
+  }
+
   Future<void> refreshCurrentUser() async {
     // Pakai maybeWhen (bukan cek tipe private _Authenticated) karena
     // konstruktor freezed bersifat library-private terhadap file ini.

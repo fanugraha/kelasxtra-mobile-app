@@ -10,6 +10,8 @@ import '../../features/auth/presentation/screens/register_form_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/check_email_screen.dart';
+import '../../features/akun/presentation/screens/edit_profil_screen.dart';
+import '../../features/akun/presentation/screens/ganti_password_screen.dart';
 import '../../features/notifikasi/presentation/screens/notifikasi_screen.dart';
 import '../../features/shell/presentation/screens/app_shell.dart';
 
@@ -75,6 +77,14 @@ GoRouter goRouter(GoRouterRef ref) {
       GoRoute(
         path: '/notifications',
         builder: (_, __) => const NotifikasiScreen(),
+      ),
+      GoRoute(
+        path: '/akun/edit-profil',
+        builder: (_, __) => const EditProfilScreen(),
+      ),
+      GoRoute(
+        path: '/akun/ganti-password',
+        builder: (_, __) => const GantiPasswordScreen(),
       ),
     ],
   );
