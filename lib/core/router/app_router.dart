@@ -10,6 +10,7 @@ import '../../features/auth/presentation/screens/register_form_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/check_email_screen.dart';
+import '../../features/notifikasi/presentation/screens/notifikasi_screen.dart';
 import '../../features/shell/presentation/screens/app_shell.dart';
 
 part 'app_router.g.dart';
@@ -71,6 +72,10 @@ GoRouter goRouter(GoRouterRef ref) {
         builder: (_, __) => const ForgotPasswordScreen(),
       ),
       GoRoute(path: '/home', builder: (_, __) => const AppShell()),
+      GoRoute(
+        path: '/notifications',
+        builder: (_, __) => const NotifikasiScreen(),
+      ),
     ],
   );
 }

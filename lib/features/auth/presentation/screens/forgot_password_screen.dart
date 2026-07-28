@@ -179,7 +179,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
         ),
         const SizedBox(height: 6),
         Text(
-          'Cek email ${_emailCtrl.text.trim()} untuk link reset password. Jangan lupa cek folder spam.',
+          'Cek email ${_emailCtrl.text.trim()} untuk link reset password. '
+          'Link akan membuka browser -- setelah password baru berhasil diatur di sana, '
+          'kembali ke app ini dan login pakai password barumu. Jangan lupa cek folder spam.',
           style: const TextStyle(color: AppColors.neutral500, fontSize: 14),
         ),
         const SizedBox(height: 24),

@@ -80,6 +80,12 @@ class AuthRepository {
     }
   }
 
+  /// CATATAN: belum dipanggil dari AuthNotifier/screen manapun -- SENGAJA.
+  /// Link reset password di email mengarah ke web app (yang sudah handle
+  /// flow-nya), bukan ke native app ini. Method ini disiapkan kalau nanti
+  /// ada keputusan produk untuk reset password langsung di app (perlu
+  /// deep link + screen input password baru); sampai saat itu, biarkan
+  /// tidak terpakai daripada dihapus.
   Future<void> resetPassword({
     required String token,
     required String email,
