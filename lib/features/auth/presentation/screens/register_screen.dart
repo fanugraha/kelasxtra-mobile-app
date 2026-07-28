@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../../../core/config/env.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 
@@ -81,7 +82,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
     });
 
     try {
-      final googleSignIn = GoogleSignIn(scopes: const ['email', 'profile']);
+      // serverClientId WAJIB diisi (lihat AppConfig.googleServerClientId) --
+      // tanpa ini idToken sering null di Android walau login Google sukses.
+      final googleSignIn = GoogleSignIn(
+        scopes: const ['email', 'profile'],
+        serverClientId: AppConfig.googleServerClientId,
+      );
       final account = await googleSignIn.signIn();
       if (account == null) {
         setState(() => _isGoogleLoading = false);

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../../../core/config/env.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 
@@ -88,7 +89,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      final googleSignIn = GoogleSignIn(scopes: const ['email', 'profile']);
+      // serverClientId WAJIB diisi (lihat AppConfig.googleServerClientId) --
+      // tanpa ini idToken sering null di Android walau login Google sukses.
+      final googleSignIn = GoogleSignIn(
+        scopes: const ['email', 'profile'],
+        serverClientId: AppConfig.googleServerClientId,
+      );
       final account = await googleSignIn.signIn();
       if (account == null) {
         setState(() => _isGoogleLoading = false);
@@ -100,6 +106,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (idToken == null) {
         setState(() {
           _isGoogleLoading = false;
+          // Kalau pesan ini masih muncul setelah serverClientId diisi
+          // dengan benar, kemungkinan besar client ID yang dipasang salah
+          // tipe (harus "Web application", bukan Android/iOS) -- lihat
+          // catatan di AppConfig.googleServerClientId.
           _errorMessage = 'Gagal mengambil token dari Google. Coba lagi.';
         });
         return;

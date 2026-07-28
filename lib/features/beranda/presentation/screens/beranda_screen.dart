@@ -188,12 +188,12 @@ class _HeaderRow extends ConsumerWidget {
   }
 }
 
-class _ContinueCard extends StatelessWidget {
+class _ContinueCard extends ConsumerWidget {
   const _ContinueCard({required this.exam});
   final ContinueExamData? exam;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final hasExam = exam != null;
 
     return Container(
@@ -261,8 +261,24 @@ class _ContinueCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
+              // TODO: exam_engine belum dibangun (lihat status fitur di
+              // dokumentasi) -- exam_id/attemptId dari [exam] sudah siap
+              // dipakai begitu halamannya ada, tinggal ganti isi onPressed
+              // ini jadi context.push('/exam/${exam!.examId}') atau serupa.
+              // Sementara: arahkan ke tab Latihan + beri feedback, supaya
+              // tombol tidak terasa mati (pola sama seperti item
+              // "Analisis Performa" di _PracticeGrid).
               onPressed: () {
-                // TODO: hasExam ? lanjut ke exam_engine dgn attemptId : ke katalog latihan.
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      hasExam
+                          ? 'Halaman pengerjaan tryout segera hadir. Sementara, cek Latihan.'
+                          : 'Fitur ini segera hadir. Sementara, cek Latihan.',
+                    ),
+                  ),
+                );
+                ref.read(selectedTabIndexProvider.notifier).state = 1;
               },
               style: FilledButton.styleFrom(
                 backgroundColor: Colors.white,
@@ -807,13 +823,19 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _LeaderboardPreview extends StatelessWidget {
+class _LeaderboardPreview extends ConsumerWidget {
   const _LeaderboardPreview({required this.rank});
   final int rank;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Sebelumnya kartu ini punya ikon chevron (menyiratkan bisa di-tap)
+    // tapi tidak ada onTap sama sekali -- ditambahkan supaya benar-benar
+    // membawa user ke tab Peringkat, bukan dead UI.
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => ref.read(selectedTabIndexProvider.notifier).state = 2,
+      child: Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -855,6 +877,7 @@ class _LeaderboardPreview extends StatelessWidget {
           ),
           const Icon(Icons.chevron_right, color: AppColors.neutral400),
         ],
+      ),
       ),
     );
   }
