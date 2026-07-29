@@ -44,6 +44,11 @@ class AkunScreen extends ConsumerWidget {
             _MenuSection(
               children: [
                 _MenuTile(
+                  icon: Icons.inventory_2_outlined,
+                  label: 'Paket Saya',
+                  onTap: () => context.push('/paket-saya'),
+                ),
+                _MenuTile(
                   icon: Icons.person_outline,
                   label: 'Edit Profil',
                   onTap: () => context.push('/akun/edit-profil'),
