@@ -1,6 +1,7 @@
 // lib/features/exam_engine/presentation/screens/exam_summary_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -238,25 +239,13 @@ class _StartButtonState extends ConsumerState<_StartButton> {
     setState(() => _isStarting = true);
 
     try {
-      // SEMENTARA: exam-taking UI (Fase 3) belum dibangun. Panggilan ini
-      // cuma buat lihat bentuk response asli POST /exams/start (lewat Dio
-      // logger di terminal) -- attempt yang ke-create beneran tersimpan
-      // di server, tapi belum ada UI untuk melanjutkannya sampai Fase 3
-      // selesai. Begitu ada, ganti isi try{} ini jadi
-      // context.push('/exam-attempts/${attempt.id}').
       final attempt = await ref.read(examRepositoryProvider).startExam(examId: widget.examId);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Attempt #${attempt.id} dibuat. uses_section_timers=${attempt.usesSectionTimers}, '
-            'remaining=${attempt.remainingSeconds}s. Cek log terminal untuk detail lengkap. '
-            'Halaman pengerjaan soal segera hadir.',
-          ),
-          duration: const Duration(seconds: 8),
-        ),
-      );
+      // Attempt in_progress untuk kombinasi exam+batch+bank yang sama
+      // di-resume otomatis oleh server (lihat catatan ExamApiService.startExam),
+      // jadi ini juga jalan buat kasus "Lanjutkan" -- bukan cuma "Mulai Ujian".
+      context.push('/exam-attempts/${attempt.id}');
     } on ApiException catch (e) {
       if (!mounted) return;
       String message = e.message;

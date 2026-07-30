@@ -120,6 +120,26 @@ class ExamQuestion with _$ExamQuestion {
   bool get isEssay => type == ExamQuestionType.essay;
 }
 
+/// Jawaban yang sudah tersimpan di server untuk attempt ini -- dipakai
+/// untuk resume (mis. app di-kill lalu dibuka lagi selagi attempt masih
+/// in_progress). x-verified: INFERRED, bukan source-code -- response
+/// `answers: []` selalu kosong sejauh ini karena testing selalu attempt
+/// baru tanpa jawaban tersimpan. Bentuk field di bawah adalah tebakan
+/// paling masuk akal berdasar payload POST .../answer (question_id +
+/// selected_option_id/essay_answer). VERIFIKASI ULANG begitu ada attempt
+/// in_progress yang sudah punya jawaban lalu di-GET ulang.
+@freezed
+class ExamAnsweredQuestion with _$ExamAnsweredQuestion {
+  const factory ExamAnsweredQuestion({
+    @JsonKey(name: 'question_id') required int questionId,
+    @JsonKey(name: 'selected_option_id') int? selectedOptionId,
+    @JsonKey(name: 'essay_answer') String? essayAnswer,
+  }) = _ExamAnsweredQuestion;
+
+  factory ExamAnsweredQuestion.fromJson(Map<String, dynamic> json) =>
+      _$ExamAnsweredQuestionFromJson(json);
+}
+
 @freezed
 class ExamAttemptModel with _$ExamAttemptModel {
   const factory ExamAttemptModel({
@@ -141,6 +161,8 @@ class ExamAttemptModel with _$ExamAttemptModel {
     @JsonKey(name: 'tab_switch_count') required int tabSwitchCount,
     @JsonKey(name: 'question_order') ExamQuestionOrder? questionOrder,
     List<ExamQuestion>? questions,
+    // Lihat catatan verifikasi di [ExamAnsweredQuestion].
+    @Default([]) List<ExamAnsweredQuestion> answers,
   }) = _ExamAttemptModel;
 
   const ExamAttemptModel._();
@@ -159,4 +181,46 @@ class ExamAttemptModel with _$ExamAttemptModel {
   /// Essay yang belum dinilai tutor -- skor belum final walau attempt
   /// sudah "selesai" dari sisi user.
   bool get isAwaitingGrading => status == ExamAttemptStatus.submitted;
+
+  /// [questions] disusun ulang sesuai urutan acak server di [questionOrder]
+  /// -- baik urutan soal maupun urutan opsi per soal -- supaya render UI
+  /// persis sama dengan yang dilihat user (server yang menentukan random
+  /// seed, bukan client). Kosong kalau attempt bukan in_progress (server
+  /// memang tidak mengirim questions/question_order untuk status lain) --
+  /// SELALU guard lewat [isInProgress] sebelum pakai ini untuk UI
+  /// pengerjaan soal, jangan andalkan list kosong sebagai sinyal loading.
+  List<ExamQuestion> get orderedQuestions {
+    final qs = questions;
+    final order = questionOrder;
+    if (qs == null || order == null) return const [];
+
+    final questionsById = {for (final q in qs) q.id: q};
+    final optionOrderByQuestion = {
+      for (final o in order.options) o.questionId: o.optionIds,
+    };
+
+    return [
+      for (final qId in order.questions)
+        if (questionsById[qId] != null)
+          _withReorderedOptions(questionsById[qId]!, optionOrderByQuestion[qId]),
+    ];
+  }
+}
+
+ExamQuestion _withReorderedOptions(ExamQuestion question, List<int>? optionIds) {
+  if (optionIds == null || optionIds.isEmpty) return question;
+
+  final optionsById = {for (final o in question.options) o.id: o};
+  final reordered = [
+    for (final id in optionIds)
+      if (optionsById[id] != null) optionsById[id]!,
+  ];
+
+  // Fallback: kalau ada opsi yang tidak disebut di question_order.options
+  // (harusnya tidak pernah terjadi dari data server), tetap sertakan di
+  // akhir daripada hilang diam-diam dari UI.
+  final coveredIds = reordered.map((o) => o.id).toSet();
+  final missing = question.options.where((o) => !coveredIds.contains(o.id));
+
+  return question.copyWith(options: [...reordered, ...missing]);
 }
