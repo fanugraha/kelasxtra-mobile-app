@@ -61,21 +61,42 @@ class _ExamAttemptScreenState extends ConsumerState<ExamAttemptScreen>
       final prevFinished = previous?.valueOrNull?.finishedAttempt;
       final nextState = next.valueOrNull;
       if (nextState?.finishedAttempt != null && prevFinished == null) {
-        final examId = nextState!.finishedAttempt!.examId;
-        final isAutoSubmitted =
-            nextState.finishedAttempt!.status == ExamAttemptStatus.autoSubmitted;
-        if (isAutoSubmitted && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Waktu habis -- jawabanmu otomatis disimpan.')),
-          );
+        final finished = nextState!.finishedAttempt!;
+        final examId = finished.examId;
+
+        if (mounted) {
+          // graded: langsung ada skor final, tidak perlu pesan tambahan --
+          // ringkasan yang dituju sudah cukup jelas. submitted: masih ada
+          // essay nunggu dinilai tutor, skor BELUM final -- kasih tahu
+          // biar user tidak bingung kenapa skornya belum muncul/berubah.
+          // auto_submitted: waktu habis, bukan aksi user sendiri.
+          final message = switch (finished.status) {
+            ExamAttemptStatus.autoSubmitted =>
+              'Waktu habis -- jawabanmu otomatis disimpan.',
+            ExamAttemptStatus.submitted =>
+              'Jawaban essay kamu sedang dinilai tutor. Skor final akan muncul setelah penilaian selesai.',
+            _ => null,
+          };
+          if (message != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(message), duration: const Duration(seconds: 6)),
+            );
+          }
         }
+
+        // Belum ada screen review terpisah (Fase 5) -- baik graded maupun
+        // submitted untuk sekarang sama-sama diarahkan ke ringkasan exam;
+        // ExamSummaryScreen sudah menampilkan skor dari attempt terakhir
+        // begitu status-nya graded. Kalau masih submitted, skor lama
+        // (percobaan sebelumnya, kalau ada) yang tampil dulu -- bukan bug,
+        // cuma keterbatasan sampai halaman review dibangun.
         if (mounted) context.go('/exams/$examId/summary');
       }
     });
 
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) async {
+      onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         final shouldExit = await _confirmExit(context);
         if (shouldExit && mounted) context.pop();

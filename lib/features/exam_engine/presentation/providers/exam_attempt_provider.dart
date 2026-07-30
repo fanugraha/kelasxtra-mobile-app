@@ -154,12 +154,38 @@ class ExamAttemptSession extends _$ExamAttemptSession {
             essayAnswer: essayAnswer,
           );
       _markSyncStatus(questionId, AnswerSyncStatus.synced);
-    } on ApiException {
-      // 422 di sini kemungkinan besar waktu habis / attempt sudah tidak
-      // aktif -- bukan tanggung jawab method ini untuk redirect (ticker
-      // yang pegang otoritas itu lewat finish()), cukup tandai gagal biar
-      // kelihatan di UI navigator soal.
+    } on ApiException catch (e) {
       _markSyncStatus(questionId, AnswerSyncStatus.failed);
+      if (e.isValidationError) {
+        // Endpoint ini cuma terima question_id + selected_option_id/
+        // essay_answer -- hampir tidak mungkin gagal validasi kalau
+        // attempt masih in_progress. 422 di sini kemungkinan besar berarti
+        // waktu sudah habis di server (device sleep lama, ticker lokal
+        // belum sempat mencapai 0) atau attempt sudah di-finish dari
+        // device lain. Re-cek status ke server supaya UI tidak nyangkut
+        // di soal yang sudah basi sampai ticker lokal sendiri habis.
+        await _resyncAttemptStatus();
+      }
+    }
+  }
+
+  /// Cek ulang status attempt ke server dan set [finishedAttempt] kalau
+  /// ternyata sudah tidak in_progress lagi -- screen dengar field ini
+  /// lewat ref.listen untuk redirect. Gagal diam-diam kalau offline
+  /// (mis. tidak ada koneksi pas dipanggil) -- ticker lokal tetap jadi
+  /// fallback biasa begitu remaining_seconds mencapai 0.
+  Future<void> _resyncAttemptStatus() async {
+    final current = state.valueOrNull;
+    if (current == null || current.finishedAttempt != null) return;
+    try {
+      final fresh = await ref.read(examRepositoryProvider).getAttempt(attemptId);
+      if (!fresh.isInProgress) {
+        _ticker?.cancel();
+        final latest = state.valueOrNull ?? current;
+        state = AsyncData(latest.copyWith(finishedAttempt: fresh));
+      }
+    } on ApiException {
+      // Biarkan -- lihat catatan di atas.
     }
   }
 
