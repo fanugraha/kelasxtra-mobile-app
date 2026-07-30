@@ -97,29 +97,30 @@ class ExamSummaryModel with _$ExamSummaryModel {
   bool get hasBeenAttempted => attemptsCount > 0;
 }
 
-/// GET /packages/{package}/exams -- ditandai `x-verified: inferred` di
-/// spec, BELUM PERNAH dipanggil nyata. Field di bawah cuma tebakan
-/// berdasarkan bentuk [ExamInfo] yang sudah terverifikasi (asumsi Laravel
-/// memakai ExamResource yang sama di kedua endpoint) -- SEMUA field selain
-/// [id] nullable/berdefault supaya parsing tidak crash kalau tebakannya
-/// meleset, tapi JANGAN percaya penuh sebelum di-curl manual 1x dan
-/// dicocokkan (sama seperti catatan review Fase 5).
+/// GET /packages/{package}/exams -- SUDAH diverifikasi ke response asli
+/// (log `flutter run` 29 Jul 2026). Field & tipe di bawah cocok persis;
+/// beberapa field awalnya ditebak salah (id -> harusnya exam_id, dan
+/// in_progress_attempt_id/attempts_count TIDAK PERNAH dikirim endpoint
+/// ini -- itu cuma ada di GET /exams/{exam}/summary, jangan tertukar).
 @freezed
 class ExamListItemModel with _$ExamListItemModel {
   const factory ExamListItemModel({
-    required int id,
+    @JsonKey(name: 'exam_id') required int examId,
+    @JsonKey(name: 'bank_id') int? bankId,
     String? title,
     @JsonKey(name: 'duration_minutes') int? durationMinutes,
     @JsonKey(name: 'passing_score') int? passingScore,
+    @JsonKey(name: 'questions_count') int? questionsCount,
     @JsonKey(name: 'is_free_preview') @Default(false) bool isFreePreview,
-    @JsonKey(name: 'in_progress_attempt_id') int? inProgressAttemptId,
-    @JsonKey(name: 'attempts_count') int? attemptsCount,
+    // Non-null = ini bagian dari roadmap Latihan Fokus (part N dari
+    // beberapa part berurutan); null = try-out biasa/berdiri sendiri.
+    @JsonKey(name: 'part_number') int? partNumber,
+    // true = part Latihan Fokus sebelumnya belum selesai, tombol harus
+    // disabled di UI -- jangan andalkan backend menolak start (403) saja,
+    // itu baru ketahuan SETELAH tap.
+    @JsonKey(name: 'is_locked') @Default(false) bool isLocked,
   }) = _ExamListItemModel;
-
-  const ExamListItemModel._();
 
   factory ExamListItemModel.fromJson(Map<String, dynamic> json) =>
       _$ExamListItemModelFromJson(json);
-
-  bool get hasInProgressAttempt => inProgressAttemptId != null;
 }

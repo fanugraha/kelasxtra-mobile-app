@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../data/exam_repository.dart';
 import '../providers/exam_provider.dart';
 
 class ExamSummaryScreen extends ConsumerWidget {
@@ -47,7 +48,7 @@ class ExamSummaryScreen extends ConsumerWidget {
                 ],
               ],
               const SizedBox(height: 24),
-              _StartButton(summary: summary),
+              _StartButton(summary: summary, examId: examId),
             ],
           ),
         ),
@@ -221,33 +222,75 @@ class _AttemptCard extends StatelessWidget {
   }
 }
 
-class _StartButton extends ConsumerWidget {
-  const _StartButton({required this.summary});
+class _StartButton extends ConsumerStatefulWidget {
+  const _StartButton({required this.summary, required this.examId});
   final ExamSummaryModel summary;
+  final int examId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final hasInProgress = summary.hasInProgressAttempt;
+  ConsumerState<_StartButton> createState() => _StartButtonState();
+}
+
+class _StartButtonState extends ConsumerState<_StartButton> {
+  bool _isStarting = false;
+
+  Future<void> _handleStart() async {
+    setState(() => _isStarting = true);
+
+    try {
+      // SEMENTARA: exam-taking UI (Fase 3) belum dibangun. Panggilan ini
+      // cuma buat lihat bentuk response asli POST /exams/start (lewat Dio
+      // logger di terminal) -- attempt yang ke-create beneran tersimpan
+      // di server, tapi belum ada UI untuk melanjutkannya sampai Fase 3
+      // selesai. Begitu ada, ganti isi try{} ini jadi
+      // context.push('/exam-attempts/${attempt.id}').
+      final attempt = await ref.read(examRepositoryProvider).startExam(examId: widget.examId);
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Attempt #${attempt.id} dibuat. uses_section_timers=${attempt.usesSectionTimers}, '
+            'remaining=${attempt.remainingSeconds}s. Cek log terminal untuk detail lengkap. '
+            'Halaman pengerjaan soal segera hadir.',
+          ),
+          duration: const Duration(seconds: 8),
+        ),
+      );
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      String message = e.message;
+      if (e.isPreviousPartIncomplete) {
+        message = 'Selesaikan part sebelumnya dulu sebelum mengerjakan ini.';
+      } else if (e.isValidationError && (e.batchStartAt != null || e.batchEndAt != null)) {
+        message = 'Try-out belum buka atau sudah tutup (batch: '
+            '${e.batchStartAt ?? '-'} s.d. ${e.batchEndAt ?? '-'}).';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    } finally {
+      if (mounted) setState(() => _isStarting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasInProgress = widget.summary.hasInProgressAttempt;
 
     return SizedBox(
       width: double.infinity,
       child: FilledButton(
-        // TODO: exam-taking UI (Fase 3) belum dibangun -- examId sudah
-        // siap dipakai begitu halamannya ada. Rencana: panggil
-        // examRepositoryProvider.startExam(examId: examId) lalu
-        // context.push('/exam-attempts/${attempt.id}') ke state machine
-        // baru, tangani ApiException.isPreviousPartIncomplete /
-        // isValidationError (batch belum buka/tutup) sebelum start.
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Halaman pengerjaan tryout segera hadir.')),
-          );
-        },
+        onPressed: _isStarting ? null : _handleStart,
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
-        child: Text(hasInProgress ? 'Lanjutkan' : 'Mulai Ujian'),
+        child: _isStarting
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              )
+            : Text(hasInProgress ? 'Lanjutkan' : 'Mulai Ujian'),
       ),
     );
   }

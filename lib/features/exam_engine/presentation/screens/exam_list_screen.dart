@@ -52,83 +52,114 @@ class _ExamCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = exam.title ?? 'Ujian #${exam.id}';
+    final title = exam.title ?? 'Ujian #${exam.examId}';
+    final isLocked = exam.isLocked;
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: () => context.push('/exams/${exam.id}/summary'),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.neutral200),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.brand500.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+      onTap: isLocked ? null : () => context.push('/exams/${exam.examId}/summary'),
+      child: Opacity(
+        opacity: isLocked ? 0.55 : 1,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.neutral200),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppColors.brand500.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  isLocked ? Icons.lock_outline : Icons.timer_outlined,
+                  color: AppColors.brand500,
+                ),
               ),
-              alignment: Alignment.center,
-              child: Icon(
-                exam.hasInProgressAttempt ? Icons.play_circle_outline : Icons.timer_outlined,
-                color: AppColors.brand500,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppColors.neutral900,
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      if (exam.durationMinutes != null) ...[
-                        const Icon(Icons.schedule, size: 12, color: AppColors.neutral500),
-                        const SizedBox(width: 3),
-                        Text(
-                          '${exam.durationMinutes} menit',
-                          style: const TextStyle(color: AppColors.neutral500, fontSize: 11.5),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        if (exam.partNumber != null) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.brand500.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Part ${exam.partNumber}',
+                              style: const TextStyle(
+                                color: AppColors.brand600,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        Expanded(
+                          child: Text(
+                            title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.neutral900,
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
-                        const SizedBox(width: 10),
                       ],
-                      if (exam.attemptsCount != null && exam.attemptsCount! > 0)
-                        Text(
-                          '${exam.attemptsCount}x dikerjakan',
-                          style: const TextStyle(color: AppColors.neutral500, fontSize: 11.5),
-                        ),
-                    ],
-                  ),
-                  if (exam.hasInProgressAttempt) ...[
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Sedang dikerjakan',
-                      style: TextStyle(
-                        color: AppColors.brand600,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
                     ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        if (exam.durationMinutes != null) ...[
+                          const Icon(Icons.schedule, size: 12, color: AppColors.neutral500),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${exam.durationMinutes} menit',
+                            style: const TextStyle(color: AppColors.neutral500, fontSize: 11.5),
+                          ),
+                          const SizedBox(width: 10),
+                        ],
+                        if (exam.questionsCount != null) ...[
+                          const Icon(Icons.list_alt_outlined, size: 12, color: AppColors.neutral500),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${exam.questionsCount} soal',
+                            style: const TextStyle(color: AppColors.neutral500, fontSize: 11.5),
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (isLocked) ...[
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Selesaikan part sebelumnya dulu',
+                        style: TextStyle(
+                          color: AppColors.neutral500,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            const Icon(Icons.chevron_right, color: AppColors.neutral400),
-          ],
+              if (!isLocked) const Icon(Icons.chevron_right, color: AppColors.neutral400),
+            ],
+          ),
         ),
       ),
     );

@@ -18,6 +18,21 @@ class ExamApiService {
 
   final Dio _dio;
 
+  /// Laravel API Resource (dipakai buat ExamAttempt) otomatis membungkus
+  /// response jadi `{"data": {...}}` secara default -- TERVERIFIKASI dari
+  /// response asli POST /exams/start (log 30 Jul 2026). Endpoint lain yang
+  /// nulis response manual (mis. /exams/{id}/summary, /packages/{id}/exams)
+  /// TIDAK dibungkus. Helper ini defensif: pakai `data['data']` kalau ada
+  /// dan berupa Map, kalau tidak fallback ke `data` itu sendiri -- supaya
+  /// tidak crash lagi kalau ternyata beberapa endpoint attempt lain
+  /// polanya beda.
+  Map<String, dynamic> _unwrap(dynamic raw) {
+    final map = raw as Map<String, dynamic>;
+    final inner = map['data'];
+    if (inner is Map<String, dynamic>) return inner;
+    return map;
+  }
+
   /// POST /exams/start -- rate limit 10/menit di server.
   /// [examBatchId] kosongkan untuk mode latihan soal.
   /// [bankId] untuk try-out multi-bank.
@@ -36,14 +51,14 @@ class ExamApiService {
         if (bankId != null) 'bank_id': bankId,
       },
     );
-    return ExamAttemptModel.fromJson(response.data as Map<String, dynamic>);
+    return ExamAttemptModel.fromJson(_unwrap(response.data));
   }
 
   /// GET /exam-attempts/{id} -- dipakai untuk resume / polling timer /
   /// ganti section.
   Future<ExamAttemptModel> getAttempt(int attemptId) async {
     final response = await _dio.get(ApiEndpoints.examAttemptDetail(attemptId));
-    return ExamAttemptModel.fromJson(response.data as Map<String, dynamic>);
+    return ExamAttemptModel.fromJson(_unwrap(response.data));
   }
 
   /// POST /exam-attempts/{id}/answer -- auto-save 1 jawaban. Rate limit
@@ -72,7 +87,7 @@ class ExamApiService {
   /// attempt, cuma dicatat untuk review admin/tutor.
   Future<int> reportTabSwitch(int attemptId) async {
     final response = await _dio.post(ApiEndpoints.examAttemptTabSwitch(attemptId));
-    final data = response.data as Map<String, dynamic>;
+    final data = _unwrap(response.data);
     return data['tab_switch_count'] as int? ?? 0;
   }
 
@@ -81,7 +96,7 @@ class ExamApiService {
   /// perlu dinilai tutor.
   Future<ExamAttemptModel> finishAttempt(int attemptId) async {
     final response = await _dio.post(ApiEndpoints.examAttemptFinish(attemptId));
-    return ExamAttemptModel.fromJson(response.data as Map<String, dynamic>);
+    return ExamAttemptModel.fromJson(_unwrap(response.data));
   }
 
   /// GET /exams/{exam}/summary -- ringkasan untuk screen pra-ujian

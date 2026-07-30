@@ -40,7 +40,11 @@ class ExamCurrentSection with _$ExamCurrentSection {
     required String name,
     required int order,
     @JsonKey(name: 'duration_minutes') int? durationMinutes,
-    @JsonKey(name: 'remaining_seconds') int? remainingSeconds,
+    // Belum ada data asli untuk field ini (uses_section_timers=false pada
+    // exam yang sudah ditest) -- dibuat double untuk konsisten dengan
+    // remaining_seconds di level attempt yang terbukti desimal. VERIFIKASI
+    // ULANG begitu ada exam dengan uses_section_timers=true.
+    @JsonKey(name: 'remaining_seconds') double? remainingSeconds,
   }) = _ExamCurrentSection;
 
   factory ExamCurrentSection.fromJson(Map<String, dynamic> json) =>
@@ -128,9 +132,10 @@ class ExamAttemptModel with _$ExamAttemptModel {
     @JsonKey(name: 'finished_at') DateTime? finishedAt,
     @JsonKey(name: 'duration_minutes') required int durationMinutes,
     @JsonKey(name: 'passing_score') int? passingScore,
-    // "0 kalau status bukan in_progress" (spec) -- jangan dipakai untuk
-    // hitung progres kalau status sudah bukan in_progress.
-    @JsonKey(name: 'remaining_seconds') required int remainingSeconds,
+    // Desimal di API asli (mis. 5999.053557), BUKAN integer -- "0 kalau
+    // status bukan in_progress" (spec) -- jangan dipakai untuk hitung
+    // progres kalau status sudah bukan in_progress.
+    @JsonKey(name: 'remaining_seconds') required double remainingSeconds,
     @JsonKey(name: 'uses_section_timers') required bool usesSectionTimers,
     @JsonKey(name: 'current_section') ExamCurrentSection? currentSection,
     @JsonKey(name: 'tab_switch_count') required int tabSwitchCount,
