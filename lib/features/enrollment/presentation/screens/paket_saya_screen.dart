@@ -167,14 +167,7 @@ class _EnrollmentCard extends StatelessWidget {
           if (isActive) ...[
             const Divider(height: 1, color: AppColors.neutral200),
             InkWell(
-              onTap: () {
-                // TODO: exam_engine belum dibangun -- begitu Fase 2 (Pre-Exam
-                // Flow) selesai, ganti jadi context.push('/paket/${enrollment.package.id}/exams')
-                // yang menampilkan hasil GET /packages/{id}/exams.
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Daftar ujian dalam paket ini segera hadir.')),
-                );
-              },
+              onTap: () => context.push('/paket/${enrollment.package.id}/exams'),
               child: const Padding(
                 padding: EdgeInsets.symmetric(vertical: 10),
                 child: Row(

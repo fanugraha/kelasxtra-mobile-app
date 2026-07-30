@@ -13,6 +13,8 @@ import '../../features/auth/presentation/screens/check_email_screen.dart';
 import '../../features/akun/presentation/screens/edit_profil_screen.dart';
 import '../../features/akun/presentation/screens/ganti_password_screen.dart';
 import '../../features/enrollment/presentation/screens/paket_saya_screen.dart';
+import '../../features/exam_engine/presentation/screens/exam_list_screen.dart';
+import '../../features/exam_engine/presentation/screens/exam_summary_screen.dart';
 import '../../features/notifikasi/presentation/screens/notifikasi_screen.dart';
 import '../../features/shell/presentation/screens/app_shell.dart';
 
@@ -90,6 +92,20 @@ GoRouter goRouter(GoRouterRef ref) {
       GoRoute(
         path: '/paket-saya',
         builder: (_, __) => const PaketSayaScreen(),
+      ),
+      GoRoute(
+        path: '/paket/:packageId/exams',
+        builder: (context, state) {
+          final packageId = int.parse(state.pathParameters['packageId']!);
+          return ExamListScreen(packageId: packageId);
+        },
+      ),
+      GoRoute(
+        path: '/exams/:examId/summary',
+        builder: (context, state) {
+          final examId = int.parse(state.pathParameters['examId']!);
+          return ExamSummaryScreen(examId: examId);
+        },
       ),
     ],
   );

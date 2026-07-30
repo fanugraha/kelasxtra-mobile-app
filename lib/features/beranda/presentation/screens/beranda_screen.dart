@@ -261,24 +261,21 @@ class _ContinueCard extends ConsumerWidget {
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              // TODO: exam_engine belum dibangun (lihat status fitur di
-              // dokumentasi) -- exam_id/attemptId dari [exam] sudah siap
-              // dipakai begitu halamannya ada, tinggal ganti isi onPressed
-              // ini jadi context.push('/exam/${exam!.examId}') atau serupa.
-              // Sementara: arahkan ke tab Latihan + beri feedback, supaya
-              // tombol tidak terasa mati (pola sama seperti item
-              // "Analisis Performa" di _PracticeGrid).
+              // hasExam -> examId dari ContinueExamData sudah cukup untuk
+              // masuk ke screen ringkasan exam (Fase 2); halaman itu yang
+              // memutuskan tombol "Mulai"/"Lanjutkan" (masih placeholder
+              // sampai exam-taking UI/Fase 3 dibangun).
+              // !hasExam -> belum ada exam untuk dilanjutkan sama sekali,
+              // tetap arahkan ke tab Latihan seperti sebelumnya.
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      hasExam
-                          ? 'Halaman pengerjaan tryout segera hadir. Sementara, cek Latihan.'
-                          : 'Fitur ini segera hadir. Sementara, cek Latihan.',
-                    ),
-                  ),
-                );
-                ref.read(selectedTabIndexProvider.notifier).state = 1;
+                if (hasExam) {
+                  context.push('/exams/${exam!.examId}/summary');
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Fitur ini segera hadir. Sementara, cek Latihan.')),
+                  );
+                  ref.read(selectedTabIndexProvider.notifier).state = 1;
+                }
               },
               style: FilledButton.styleFrom(
                 backgroundColor: Colors.white,
