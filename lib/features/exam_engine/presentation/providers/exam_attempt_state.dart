@@ -23,6 +23,9 @@ class LocalAnswer with _$LocalAnswer {
     int? selectedOptionId,
     String? essayAnswer,
     @Default(AnswerSyncStatus.synced) AnswerSyncStatus syncStatus,
+    // "Ragu-ragu" -- murni penanda lokal buat bantu user, TIDAK dikirim ke
+    // server (endpoint .../answer cuma terima question_id + jawaban).
+    @Default(false) bool isFlagged,
   }) = _LocalAnswer;
 }
 
@@ -34,6 +37,12 @@ class ExamAttemptSessionState with _$ExamAttemptSessionState {
     @Default(0) int currentIndex,
     @Default(<int, LocalAnswer>{}) Map<int, LocalAnswer> answers,
     required double remainingSeconds,
+    // Countdown section aktif -- cuma dipakai kalau attempt.usesSectionTimers
+    // == true. Null berarti exam ini tidak pakai timer per-section (kasus
+    // paling umum di data yang sudah ditest), UI dual-timer di appbar harus
+    // guard lewat null-check ini, bukan cuma usesSectionTimers, karena
+    // section timer bisa sementara null selagi resync ke server berjalan.
+    double? sectionRemainingSeconds,
     @Default(0) int tabSwitchCount,
     @Default(false) bool isFinishing,
     // Diisi begitu finishAttempt() sukses (manual maupun auto-submit saat
@@ -56,4 +65,5 @@ class ExamAttemptSessionState with _$ExamAttemptSessionState {
   bool get isLastQuestion => currentIndex == totalQuestions - 1;
   bool get isFirstQuestion => currentIndex == 0;
   bool get isTimeUp => remainingSeconds <= 0;
+  bool get hasSectionTimer => attempt.usesSectionTimers && sectionRemainingSeconds != null;
 }

@@ -26,6 +26,15 @@ class _ExamAttemptScreenState extends ConsumerState<ExamAttemptScreen>
   Timer? _essayDebounce;
   bool _isFinishingManually = false;
 
+  // Satu PageController buat swipe antar soal (item #3). Perpindahan
+  // currentIndex bisa datang dari 2 arah: swipe manual (onPageChanged ->
+  // panggil notifier.goToQuestion) ATAU dari luar PageView (tombol
+  // Sebelumnya/Selanjutnya, tap grid navigator) -- untuk arah kedua,
+  // controller perlu di-jumpToPage manual, disinkronkan tiap build lewat
+  // _syncPageController (bukan langsung di build supaya tidak motret
+  // PageView selagi masih dalam proses layout).
+  final PageController _pageController = PageController();
+
   @override
   void initState() {
     super.initState();
@@ -36,7 +45,18 @@ class _ExamAttemptScreenState extends ConsumerState<ExamAttemptScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _essayDebounce?.cancel();
+    _pageController.dispose();
     super.dispose();
+  }
+
+  void _syncPageController(int targetIndex) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_pageController.hasClients) return;
+      final currentPage = _pageController.page?.round() ?? _pageController.initialPage;
+      if (currentPage != targetIndex) {
+        _pageController.jumpToPage(targetIndex);
+      }
+    });
   }
 
   @override
@@ -116,9 +136,11 @@ class _ExamAttemptScreenState extends ConsumerState<ExamAttemptScreen>
               // tampilkan spinner sebentar daripada layar kosong/soal usang.
               return const Center(child: CircularProgressIndicator());
             }
+            _syncPageController(session.currentIndex);
             return _AttemptBody(
               attemptId: widget.attemptId,
               session: session,
+              pageController: _pageController,
               isFinishingManually: _isFinishingManually,
               onEssayChanged: _handleEssayChanged,
               onTapFinish: _handleTapFinish,
@@ -132,6 +154,7 @@ class _ExamAttemptScreenState extends ConsumerState<ExamAttemptScreen>
   PreferredSizeWidget _buildAppBar(ExamAttemptSessionState? session) {
     final remaining = session?.remainingSeconds ?? 0;
     final isLowTime = remaining <= 300; // <= 5 menit
+    final hasSectionTimer = session?.hasSectionTimer ?? false;
 
     return AppBar(
       backgroundColor: AppColors.neutral50,
@@ -140,30 +163,21 @@ class _ExamAttemptScreenState extends ConsumerState<ExamAttemptScreen>
           : Text('Soal ${session.currentIndex + 1} dari ${session.totalQuestions}'),
       actions: [
         if (session != null) ...[
-          Container(
-            margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: isLowTime ? AppColors.danger50 : AppColors.brand500.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
+          if (hasSectionTimer)
+            // Timer section aktif -- ditampilkan TERPISAH dari timer total
+            // di sebelahnya, keduanya berjalan independen (lihat catatan
+            // dual-timer di exam_attempt_provider.dart). Section habis
+            // duluan tidak menghentikan ujian, cuma pindah section.
+            _TimerChip(
+              icon: Icons.view_agenda_outlined,
+              label: session.attempt.currentSection?.name ?? 'Sesi',
+              seconds: session.sectionRemainingSeconds!,
+              isLowTime: session.sectionRemainingSeconds! <= 60,
             ),
-            alignment: Alignment.center,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.timer_outlined,
-                    size: 15, color: isLowTime ? AppColors.danger600 : AppColors.brand600),
-                const SizedBox(width: 4),
-                Text(
-                  _formatDuration(remaining),
-                  style: TextStyle(
-                    color: isLowTime ? AppColors.danger600 : AppColors.brand600,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
+          _TimerChip(
+            icon: Icons.timer_outlined,
+            seconds: remaining,
+            isLowTime: isLowTime,
           ),
           IconButton(
             icon: const Icon(Icons.grid_view_rounded),
@@ -259,16 +273,60 @@ class _ExamAttemptScreenState extends ConsumerState<ExamAttemptScreen>
       ),
     );
   }
+}
 
-  static String _formatDuration(double seconds) {
-    final total = seconds.floor().clamp(0, 999999);
-    final h = total ~/ 3600;
-    final m = (total % 3600) ~/ 60;
-    final s = total % 60;
-    final mm = m.toString().padLeft(2, '0');
-    final ss = s.toString().padLeft(2, '0');
-    if (h > 0) return '$h:$mm:$ss';
-    return '$mm:$ss';
+String _formatDuration(double seconds) {
+  final total = seconds.floor().clamp(0, 999999);
+  final h = total ~/ 3600;
+  final m = (total % 3600) ~/ 60;
+  final s = total % 60;
+  final mm = m.toString().padLeft(2, '0');
+  final ss = s.toString().padLeft(2, '0');
+  if (h > 0) return '$h:$mm:$ss';
+  return '$mm:$ss';
+}
+
+class _TimerChip extends StatelessWidget {
+  const _TimerChip({
+    required this.icon,
+    required this.seconds,
+    required this.isLowTime,
+    this.label,
+  });
+
+  final IconData icon;
+  final double seconds;
+  final bool isLowTime;
+  // Nama section (kalau ini timer section) -- ditampilkan sebelum angka
+  // biar user tahu ini countdown apa saat 2 chip tampil berdampingan.
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: isLowTime ? AppColors.danger50 : AppColors.brand500.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      alignment: Alignment.center,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: isLowTime ? AppColors.danger600 : AppColors.brand600),
+          const SizedBox(width: 4),
+          Text(
+            label == null ? _formatDuration(seconds) : '$label ${_formatDuration(seconds)}',
+            style: TextStyle(
+              color: isLowTime ? AppColors.danger600 : AppColors.brand600,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -276,6 +334,7 @@ class _AttemptBody extends ConsumerWidget {
   const _AttemptBody({
     required this.attemptId,
     required this.session,
+    required this.pageController,
     required this.isFinishingManually,
     required this.onEssayChanged,
     required this.onTapFinish,
@@ -283,14 +342,13 @@ class _AttemptBody extends ConsumerWidget {
 
   final int attemptId;
   final ExamAttemptSessionState session;
+  final PageController pageController;
   final bool isFinishingManually;
   final void Function(int questionId, String text) onEssayChanged;
   final Future<void> Function(ExamAttemptSessionState session) onTapFinish;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final question = session.currentQuestion;
-    final answer = session.answers[question.id];
     final notifier = ref.read(examAttemptSessionProvider(attemptId).notifier);
 
     return Column(
@@ -304,59 +362,27 @@ class _AttemptBody extends ConsumerWidget {
           minHeight: 3,
         ),
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (question.category != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.brand500.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      question.category!.code,
-                      style: const TextStyle(
-                        color: AppColors.brand600,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                const SizedBox(height: 12),
-                QuestionHtmlText(question.questionText),
-                if (question.mediaType == 'image' && question.mediaUrl != null) ...[
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      question.mediaUrl!,
-                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 20),
-                if (question.isEssay)
-                  _EssayField(
-                    key: ValueKey(question.id),
-                    initialText: answer?.essayAnswer ?? '',
-                    onChanged: (text) => onEssayChanged(question.id, text),
-                  )
-                else
-                  for (final option in question.options)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: _OptionCard(
-                        option: option,
-                        isSelected: answer?.selectedOptionId == option.id,
-                        onTap: () =>
-                            notifier.selectOption(questionId: question.id, optionId: option.id),
-                      ),
-                    ),
-              ],
-            ),
+          // PageView -- swipe kiri/kanan pindah soal (item #3). onPageChanged
+          // cuma dipanggil untuk swipe MANUAL user; perpindahan dari tombol
+          // Sebelumnya/Selanjutnya atau grid navigator diurus lewat
+          // _syncPageController di parent (jumpToPage), bukan lewat sini,
+          // jadi tidak ada dobel-panggil goToQuestion untuk aksi yang sama.
+          child: PageView.builder(
+            controller: pageController,
+            itemCount: session.totalQuestions,
+            onPageChanged: notifier.goToQuestion,
+            itemBuilder: (context, index) {
+              final question = session.orderedQuestions[index];
+              final answer = session.answers[question.id];
+              return _QuestionPage(
+                question: question,
+                answer: answer,
+                onEssayChanged: onEssayChanged,
+                onSelectOption: (optionId) =>
+                    notifier.selectOption(questionId: question.id, optionId: optionId),
+                onToggleFlag: () => notifier.toggleFlag(question.id),
+              );
+            },
           ),
         ),
         _BottomNavBar(
@@ -367,6 +393,125 @@ class _AttemptBody extends ConsumerWidget {
           onFinish: () => onTapFinish(session),
         ),
       ],
+    );
+  }
+}
+
+class _QuestionPage extends StatelessWidget {
+  const _QuestionPage({
+    required this.question,
+    required this.answer,
+    required this.onEssayChanged,
+    required this.onSelectOption,
+    required this.onToggleFlag,
+  });
+
+  final ExamQuestion question;
+  final LocalAnswer? answer;
+  final void Function(int questionId, String text) onEssayChanged;
+  final ValueChanged<int> onSelectOption;
+  final VoidCallback onToggleFlag;
+
+  @override
+  Widget build(BuildContext context) {
+    final isFlagged = answer?.isFlagged ?? false;
+
+    return SingleChildScrollView(
+      // Key per soal -- penting supaya SingleChildScrollView tidak
+      // "mewarisi" posisi scroll dari soal sebelumnya begitu PageView
+      // pindah halaman (tanpa ini, soal panjang bisa kebuka di tengah).
+      key: PageStorageKey(question.id),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (question.category != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.brand500.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    question.category!.code,
+                    style: const TextStyle(
+                      color: AppColors.brand600,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              const Spacer(),
+              // Tombol ragu-ragu (item #2) -- toggle murni lokal, tidak
+              // memengaruhi status terjawab/kosong sama sekali.
+              InkWell(
+                borderRadius: BorderRadius.circular(20),
+                onTap: onToggleFlag,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isFlagged ? AppColors.gold100 : AppColors.neutral100,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isFlagged ? AppColors.gold500 : AppColors.neutral200,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isFlagged ? Icons.bookmark : Icons.bookmark_outline,
+                        size: 15,
+                        color: isFlagged ? AppColors.gold600 : AppColors.neutral500,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Ragu-ragu',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isFlagged ? AppColors.gold600 : AppColors.neutral500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          QuestionHtmlText(question.questionText),
+          if (question.mediaType == 'image' && question.mediaUrl != null) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.network(
+                question.mediaUrl!,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
+          if (question.isEssay)
+            _EssayField(
+              key: ValueKey(question.id),
+              initialText: answer?.essayAnswer ?? '',
+              onChanged: (text) => onEssayChanged(question.id, text),
+            )
+          else
+            for (final option in question.options)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _OptionCard(
+                  option: option,
+                  isSelected: answer?.selectedOptionId == option.id,
+                  onTap: () => onSelectOption(option.id),
+                ),
+              ),
+        ],
+      ),
     );
   }
 }
@@ -526,13 +671,29 @@ class _QuestionNavigatorSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              '${session.answeredCount} dari ${session.totalQuestions} soal terjawab',
-              style: const TextStyle(
-                color: AppColors.neutral900,
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${session.answeredCount} dari ${session.totalQuestions} soal terjawab',
+                    style: const TextStyle(
+                      color: AppColors.neutral900,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            const Row(
+              children: [
+                _LegendDot(color: AppColors.brand500, label: 'Terjawab'),
+                SizedBox(width: 14),
+                _LegendDot(color: AppColors.gold500, label: 'Ragu-ragu'),
+                SizedBox(width: 14),
+                _LegendDot(color: AppColors.neutral300, label: 'Kosong'),
+              ],
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -549,28 +710,41 @@ class _QuestionNavigatorSheet extends StatelessWidget {
                   final answer = session.answers[question.id];
                   final isAnswered = answer?.selectedOptionId != null ||
                       (answer?.essayAnswer?.trim().isNotEmpty ?? false);
+                  final isFlagged = answer?.isFlagged ?? false;
                   final isCurrent = index == session.currentIndex;
+
+                  // Prioritas warna kalau current: brand500 solid selalu
+                  // menang (biar posisi user tetap jelas) -- ragu-ragu cuma
+                  // tampil sebagai warna dasar untuk soal yang BUKAN sedang
+                  // dibuka.
+                  final Color fillColor = isCurrent
+                      ? AppColors.brand500
+                      : isFlagged
+                          ? AppColors.gold100
+                          : isAnswered
+                              ? AppColors.brand50
+                              : AppColors.neutral100;
+                  final Color borderColor = isCurrent
+                      ? AppColors.brand500
+                      : isFlagged
+                          ? AppColors.gold500
+                          : AppColors.neutral200;
+                  final Color textColor = isCurrent ? Colors.white : AppColors.neutral900;
 
                   return InkWell(
                     borderRadius: BorderRadius.circular(10),
                     onTap: () => onSelect(index),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: isCurrent
-                            ? AppColors.brand500
-                            : isAnswered
-                                ? AppColors.brand50
-                                : AppColors.neutral100,
+                        color: fillColor,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: isCurrent ? AppColors.brand500 : AppColors.neutral200,
-                        ),
+                        border: Border.all(color: borderColor),
                       ),
                       alignment: Alignment.center,
                       child: Text(
                         '${index + 1}',
                         style: TextStyle(
-                          color: isCurrent ? Colors.white : AppColors.neutral900,
+                          color: textColor,
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
                         ),
@@ -583,6 +757,29 @@ class _QuestionNavigatorSheet extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _LegendDot extends StatelessWidget {
+  const _LegendDot({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 5),
+        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.neutral500)),
+      ],
     );
   }
 }
