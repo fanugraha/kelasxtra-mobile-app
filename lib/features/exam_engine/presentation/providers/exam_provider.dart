@@ -7,8 +7,10 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../data/exam_repository.dart';
+import '../../data/models/exam_review_model.dart';
 import '../../data/models/exam_summary_model.dart';
 
+export '../../data/models/exam_review_model.dart';
 export '../../data/models/exam_summary_model.dart';
 
 part 'exam_provider.g.dart';
@@ -26,10 +28,9 @@ Future<List<ExamListItemModel>> packageExams(PackageExamsRef ref, int packageId)
   return ref.watch(examRepositoryProvider).getPackageExams(packageId);
 }
 
-/// GET /exam-attempts/{id}/review -- Map mentah (bukan model freezed), lihat
-/// catatan verifikasi panjang di [ExamRepository.getReview] kenapa
-/// (`x-verified: inferred`, struktur belum diketahui sama sekali).
+/// GET /exam-attempts/{id}/review -- pembahasan per soal (model
+/// terverifikasi, lihat [ExamReviewModel]).
 @riverpod
-Future<Map<String, dynamic>> examReview(ExamReviewRef ref, int attemptId) {
+Future<ExamReviewModel> examReview(ExamReviewRef ref, int attemptId) {
   return ref.watch(examRepositoryProvider).getReview(attemptId);
 }

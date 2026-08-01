@@ -9,6 +9,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../core/network/dio_client.dart';
 import 'models/exam_attempt_model.dart';
+import 'models/exam_review_model.dart';
 import 'models/exam_summary_model.dart';
 
 part 'exam_api_service.g.dart';
@@ -121,14 +122,12 @@ class ExamApiService {
         .toList();
   }
 
-  /// GET /exam-attempts/{id}/review -- struktur ditandai `x-verified:
-  /// inferred` di spec, BELUM dimodelkan jadi freezed class. Sengaja
-  /// dikembalikan sebagai Map mentah -- panggil manual (curl/Postman)
-  /// begitu ada attempt berstatus graded, baru desain model & UI-nya
-  /// (rencana Fase 5).
-  Future<Map<String, dynamic>> getReview(int attemptId) async {
+  /// GET /exam-attempts/{id}/review -- pembahasan per soal. Struktur
+  /// diverifikasi dari response asli 31 Jul 2026 (lihat catatan tri-state
+  /// `is_correct` dan kasus khusus TKP di [ExamReviewQuestion]).
+  Future<ExamReviewModel> getReview(int attemptId) async {
     final response = await _dio.get(ApiEndpoints.examAttemptReview(attemptId));
-    return response.data as Map<String, dynamic>;
+    return ExamReviewModel.fromJson(response.data as Map<String, dynamic>);
   }
 }
 

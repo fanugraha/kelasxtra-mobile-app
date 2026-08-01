@@ -5,6 +5,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../core/network/api_exception.dart';
 import 'exam_api_service.dart';
 import 'models/exam_attempt_model.dart';
+import 'models/exam_review_model.dart';
 import 'models/exam_summary_model.dart';
 
 part 'exam_repository.g.dart';
@@ -101,7 +102,7 @@ class ExamRepository {
     }
   }
 
-  Future<Map<String, dynamic>> getReview(int attemptId) async {
+  Future<ExamReviewModel> getReview(int attemptId) async {
     try {
       return await _api.getReview(attemptId);
     } on DioException catch (e) {
