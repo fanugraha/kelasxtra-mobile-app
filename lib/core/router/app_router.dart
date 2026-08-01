@@ -12,6 +12,7 @@ import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/check_email_screen.dart';
 import '../../features/akun/presentation/screens/edit_profil_screen.dart';
 import '../../features/akun/presentation/screens/ganti_password_screen.dart';
+import '../../features/beranda/presentation/screens/analisis_performa_screen.dart';
 import '../../features/enrollment/presentation/screens/paket_saya_screen.dart';
 import '../../features/exam_engine/presentation/screens/exam_attempt_screen.dart';
 import '../../features/exam_engine/presentation/screens/exam_list_screen.dart';
@@ -90,6 +91,10 @@ GoRouter goRouter(GoRouterRef ref) {
       GoRoute(
         path: '/akun/ganti-password',
         builder: (_, __) => const GantiPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/analisis-performa',
+        builder: (_, __) => const AnalisisPerformaScreen(),
       ),
       GoRoute(
         path: '/paket-saya',

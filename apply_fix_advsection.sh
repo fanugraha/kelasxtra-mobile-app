@@ -1,3 +1,4 @@
+cat > lib/features/exam_engine/presentation/providers/exam_attempt_provider.dart << 'EOF_PROVIDER'
 // lib/features/exam_engine/presentation/providers/exam_attempt_provider.dart
 //
 // Fase 3: state machine 1 sesi pengerjaan ujian. AsyncNotifier family per
@@ -389,3 +390,6 @@ class ExamAttemptSession extends _$ExamAttemptSession {
     }
   }
 }
+EOF_PROVIDER
+
+echo 'Bug fix _advanceSection (orderedQuestions/currentIndex sync) diterapkan.'

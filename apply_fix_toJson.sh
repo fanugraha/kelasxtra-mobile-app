@@ -1,3 +1,4 @@
+cat > lib/features/beranda/data/models/beranda_models.dart << 'EOF_MODELS'
 // lib/features/beranda/data/models/beranda_models.dart
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -463,3 +464,6 @@ class BerandaData with _$BerandaData {
     required PerformanceSummary performance,
   }) = _BerandaData;
 }
+EOF_MODELS
+
+echo 'Fix: PerformanceSection dikembalikan ke delegate biasa + sanitasi oneOf topics dipindah ke sanitizePerformanceSummaryJson.'

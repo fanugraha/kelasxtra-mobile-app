@@ -38,6 +38,7 @@ class BerandaNotifier extends _$BerandaNotifier {
       averageScore: 0,
       rank: raw.performance.ranking?.rank ?? 0,
       unreadNotificationCount: raw.unreadNotificationCount,
+      performance: raw.performance,
     );
   }
 

@@ -452,10 +452,9 @@ class _SectionTitle extends StatelessWidget {
 /// didesain -- akan otomatis benar begitu LatihanScreen dibangun dengan
 /// section internal.
 ///
-/// "Analisis Performa" belum ada halamannya sama sekali -- BerandaData
-/// belum punya data breakdown performa yang cukup (baru averageScore/rank
-/// flat, belum ranking.percentile/totalParticipants/program). Sementara
-/// tampilkan SnackBar sampai model & halamannya dibangun.
+/// "Analisis Performa" sekarang push ke AnalisisPerformaScreen (konsumsi
+/// PerformanceSummary penuh dari BerandaData.performance -- reuse cache
+/// Beranda, tidak ada request tambahan).
 class _PracticeGrid extends ConsumerWidget {
   const _PracticeGrid();
 
@@ -481,9 +480,7 @@ class _PracticeGrid extends ConsumerWidget {
           borderRadius: BorderRadius.circular(16),
           onTap: () {
             if (isPerformance) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Analisis Performa segera hadir')),
-              );
+              context.push('/analisis-performa');
             } else {
               ref.read(selectedTabIndexProvider.notifier).state = 1;
             }

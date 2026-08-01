@@ -63,7 +63,7 @@ class BerandaApiService {
     final response = await _dio.get('/exam-attempts/$attemptId');
     final data = response.data as Map<String, dynamic>;
     return ExamAttemptProgress(
-      remainingSeconds: data['remaining_seconds'] as int,
+      remainingSeconds: (data['remaining_seconds'] as num).toDouble(),
       durationMinutes: data['duration_minutes'] as int,
     );
   }
