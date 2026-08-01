@@ -15,6 +15,7 @@ import '../../features/akun/presentation/screens/ganti_password_screen.dart';
 import '../../features/enrollment/presentation/screens/paket_saya_screen.dart';
 import '../../features/exam_engine/presentation/screens/exam_attempt_screen.dart';
 import '../../features/exam_engine/presentation/screens/exam_list_screen.dart';
+import '../../features/exam_engine/presentation/screens/exam_review_screen.dart';
 import '../../features/exam_engine/presentation/screens/exam_summary_screen.dart';
 import '../../features/notifikasi/presentation/screens/notifikasi_screen.dart';
 import '../../features/shell/presentation/screens/app_shell.dart';
@@ -113,6 +114,13 @@ GoRouter goRouter(GoRouterRef ref) {
         builder: (context, state) {
           final attemptId = int.parse(state.pathParameters['attemptId']!);
           return ExamAttemptScreen(attemptId: attemptId);
+        },
+      ),
+      GoRoute(
+        path: '/exam-attempts/:attemptId/review',
+        builder: (context, state) {
+          final attemptId = int.parse(state.pathParameters['attemptId']!);
+          return ExamReviewScreen(attemptId: attemptId);
         },
       ),
     ],

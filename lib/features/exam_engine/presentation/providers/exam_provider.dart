@@ -25,3 +25,11 @@ Future<ExamSummaryModel> examSummary(ExamSummaryRef ref, int examId, {int? bankI
 Future<List<ExamListItemModel>> packageExams(PackageExamsRef ref, int packageId) {
   return ref.watch(examRepositoryProvider).getPackageExams(packageId);
 }
+
+/// GET /exam-attempts/{id}/review -- Map mentah (bukan model freezed), lihat
+/// catatan verifikasi panjang di [ExamRepository.getReview] kenapa
+/// (`x-verified: inferred`, struktur belum diketahui sama sekali).
+@riverpod
+Future<Map<String, dynamic>> examReview(ExamReviewRef ref, int attemptId) {
+  return ref.watch(examRepositoryProvider).getReview(attemptId);
+}

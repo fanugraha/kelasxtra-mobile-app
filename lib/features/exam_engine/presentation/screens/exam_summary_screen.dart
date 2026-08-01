@@ -217,6 +217,15 @@ class _AttemptCard extends StatelessWidget {
                 ],
               ),
             ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => context.push('/exam-attempts/${attempt.attemptId}/review'),
+              style: TextButton.styleFrom(padding: EdgeInsets.zero),
+              child: const Text('Lihat Pembahasan'),
+            ),
+          ),
         ],
       ),
     );
