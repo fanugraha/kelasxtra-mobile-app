@@ -1,3 +1,13 @@
+#!/usr/bin/env bash
+# apply_fix_summary_stale_cache.sh
+# Fix: skor/riwayat percobaan tidak muncul di Ringkasan Ujian setelah
+# selesai ujian, karena examSummaryProvider(examId) tidak di-invalidate
+# sebelum redirect balik ke summary -- data lama (dari sebelum attempt
+# selesai) yang ke-cache Riverpod yang tampil, bukan data terbaru server.
+# Jalankan dari root repo kelasxtra-mobile-app.
+set -euo pipefail
+
+cat > "lib/features/exam_engine/presentation/screens/exam_attempt_screen.dart" << 'DART_EOF'
 // lib/features/exam_engine/presentation/screens/exam_attempt_screen.dart
 import 'dart:async';
 
@@ -822,3 +832,6 @@ class _ErrorState extends StatelessWidget {
     );
   }
 }
+DART_EOF
+
+echo "Fix stale summary cache diterapkan. Hot restart app (bukan hot reload) untuk apply."

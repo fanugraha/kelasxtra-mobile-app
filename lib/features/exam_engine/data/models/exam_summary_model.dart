@@ -2,9 +2,11 @@
 //
 // Model untuk GET /exams/{exam}/summary (x-verified: source-code, field &
 // tipe cocok schema di kelasxtra-openapi.yaml -- sudah dicek juga terhadap
-// response asli di log `flutter run` tanggal 29 Jul 2026, cocok persis)
-// dan GET /packages/{package}/exams (x-verified: inferred -- lihat catatan
-// di [ExamListItemModel] sebelum dipakai untuk hal kritikal).
+// response asli di log `flutter run` tanggal 29 Jul 2026, cocok persis;
+// KECUALI `passed`, lihat catatan di [ExamAttemptSummary] -- ternyata bisa
+// null, beda dari spec, ketahuan dari log 2 Agu 2026) dan GET
+// /packages/{package}/exams (x-verified: inferred -- lihat catatan di
+// [ExamListItemModel] sebelum dipakai untuk hal kritikal).
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'exam_summary_model.freezed.dart';
@@ -69,7 +71,12 @@ class ExamAttemptSummary with _$ExamAttemptSummary {
     @JsonKey(name: 'finished_at') required DateTime finishedAt,
     required double score,
     @JsonKey(name: 'correct_count') required int correctCount,
-    required bool passed,
+    // Spec openapi bilang `boolean` biasa, tapi response asli membuktikan
+    // ini BISA null -- muncul saat exam tidak punya passing_score sama
+    // sekali (mis. exam Latihan Soal per Topik, lihat log 2 Agu 2026 exam
+    // "Integritas - Part 1": passing_score null -> passed null). Server
+    // memang tidak bisa menentukan lulus/tidak tanpa ambang batas.
+    bool? passed,
     @Default([]) List<ExamAttemptSectionScore> sections,
     ExamBankRef? bank,
   }) = _ExamAttemptSummary;

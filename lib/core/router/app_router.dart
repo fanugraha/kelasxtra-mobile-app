@@ -18,6 +18,9 @@ import '../../features/exam_engine/presentation/screens/exam_attempt_screen.dart
 import '../../features/exam_engine/presentation/screens/exam_list_screen.dart';
 import '../../features/exam_engine/presentation/screens/exam_review_screen.dart';
 import '../../features/exam_engine/presentation/screens/exam_summary_screen.dart';
+import '../../features/latihan_fokus/presentation/screens/latihan_kategori_screen.dart';
+import '../../features/latihan_fokus/presentation/screens/latihan_roadmap_screen.dart';
+import '../../features/latihan_fokus/presentation/screens/latihan_topik_screen.dart';
 import '../../features/notifikasi/presentation/screens/notifikasi_screen.dart';
 import '../../features/shell/presentation/screens/app_shell.dart';
 
@@ -99,6 +102,26 @@ GoRouter goRouter(GoRouterRef ref) {
       GoRoute(
         path: '/paket-saya',
         builder: (_, __) => const PaketSayaScreen(),
+      ),
+      GoRoute(
+        path: '/latihan-soal',
+        builder: (_, __) => const LatihanKategoriScreen(),
+      ),
+      GoRoute(
+        path: '/latihan-soal/kategori/:taxonomyId',
+        builder: (context, state) {
+          final taxonomyId = int.parse(state.pathParameters['taxonomyId']!);
+          final categoryName = state.extra as String?;
+          return LatihanTopikScreen(taxonomyId: taxonomyId, categoryName: categoryName);
+        },
+      ),
+      GoRoute(
+        path: '/latihan-soal/topik/:topicId',
+        builder: (context, state) {
+          final topicId = int.parse(state.pathParameters['topicId']!);
+          final topicName = state.extra as String?;
+          return LatihanRoadmapScreen(topicId: topicId, topicName: topicName);
+        },
       ),
       GoRoute(
         path: '/paket/:packageId/exams',
