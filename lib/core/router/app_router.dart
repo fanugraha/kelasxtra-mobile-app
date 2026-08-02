@@ -14,6 +14,7 @@ import '../../features/akun/presentation/screens/edit_profil_screen.dart';
 import '../../features/akun/presentation/screens/ganti_password_screen.dart';
 import '../../features/beranda/presentation/screens/analisis_performa_screen.dart';
 import '../../features/enrollment/presentation/screens/paket_saya_screen.dart';
+import '../../features/katalog/presentation/screens/tryout_screen.dart';
 import '../../features/exam_engine/presentation/screens/exam_attempt_screen.dart';
 import '../../features/exam_engine/presentation/screens/exam_list_screen.dart';
 import '../../features/exam_engine/presentation/screens/exam_review_screen.dart';
@@ -104,6 +105,10 @@ GoRouter goRouter(GoRouterRef ref) {
         builder: (_, __) => const PaketSayaScreen(),
       ),
       GoRoute(
+        path: '/tryout',
+        builder: (_, __) => const TryoutScreen(),
+      ),
+      GoRoute(
         path: '/latihan-soal',
         builder: (_, __) => const LatihanKategoriScreen(),
       ),
@@ -154,3 +159,4 @@ GoRouter goRouter(GoRouterRef ref) {
     ],
   );
 }
+
