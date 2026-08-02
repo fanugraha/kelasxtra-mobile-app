@@ -284,10 +284,15 @@ class _RecommendationCard extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       // practice_link dari backend belum match route app ini (lihat catatan
-      // di _NoAttemptsState) -- sementara diarahkan ke Paket Saya. TODO:
-      // ganti jadi navigasi langsung ke Latihan Fokus per-topik begitu
-      // Fase 6 (wiring Latihan) selesai dibangun.
-      onTap: () => context.push('/paket-saya'),
+      // di _NoAttemptsState), jadi tidak dipakai. Push langsung pakai
+      // recommendation.topicId ke roadmap topik terkait -- diverifikasi
+      // topic_id di sini pakai id Topic model yang sama dengan route model
+      // binding /latihan-soal/topics/{topic}/roadmap di backend
+      // (TopicPracticeController::roadmap), jadi aman dipakai langsung.
+      onTap: () => context.push(
+        '/latihan-soal/topik/${recommendation.topicId}',
+        extra: recommendation.topicName,
+      ),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(14),

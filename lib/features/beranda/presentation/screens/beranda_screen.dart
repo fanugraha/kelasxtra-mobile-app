@@ -445,80 +445,97 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-/// Grid 2x2 akses cepat. 3 item pertama pindah ke tab Latihan (index 1 di
-/// AppShell) -- LatihanScreen saat ini masih placeholder ("segera hadir"),
-/// jadi semua 3 akan mendarat di tempat yang sama untuk saat ini. Itu
-/// bukan dead button (tab-nya nyata & merespons), cuma isinya belum
-/// didesain -- akan otomatis benar begitu LatihanScreen dibangun dengan
-/// section internal.
+/// Grid akses cepat, 3 item (bukan 4 -- lihat catatan di bawah), tiap item
+/// push langsung ke rute tujuannya (bukan cuma ganti tab bottom-nav lalu
+/// user tap lagi).
 ///
-/// "Analisis Performa" sekarang push ke AnalisisPerformaScreen (konsumsi
+/// Dulu ada tile ke-4 "Latihan Fokus" ("Perkuat kelemahanmu") terpisah dari
+/// "Latihan Soal per Topik" -- dihapus karena keduanya SATU fitur yang sama
+/// (endpoint /latihan-soal/categories -> topics -> roadmap, ditag "Latihan
+/// Fokus" di kelasxtra-openapi.yaml). Tile "Latihan Fokus" cuma mendarat di
+/// kategori generik yang sama, jadi subtitle "Perkuat kelemahanmu" menjanjikan
+/// sesuatu yang tidak benar-benar ada (tidak ada personalisasi kelemahan di
+/// screen itu) -- membingungkan, bukan cuma duplikat kosmetik.
+///
+/// "Analisis Performa" push ke AnalisisPerformaScreen (konsumsi
 /// PerformanceSummary penuh dari BerandaData.performance -- reuse cache
 /// Beranda, tidak ada request tambahan).
 class _PracticeGrid extends ConsumerWidget {
   const _PracticeGrid();
 
   static const _items = [
-    (icon: Icons.topic_outlined, title: 'Latihan Soal per Topik', subtitle: 'Susun roadmap topik'),
-    (icon: Icons.center_focus_strong_outlined, title: 'Latihan Fokus', subtitle: 'Perkuat kelemahanmu'),
-    (icon: Icons.timer_outlined, title: 'Tryout', subtitle: 'Simulasi CAT penuh'),
-    (icon: Icons.insights_outlined, title: 'Analisis Performa', subtitle: 'Lihat progres belajarmu'),
+    (
+      icon: Icons.topic_outlined,
+      title: 'Latihan Soal per Topik',
+      subtitle: 'Susun roadmap topik',
+      route: '/latihan-soal',
+    ),
+    (
+      icon: Icons.timer_outlined,
+      title: 'Tryout',
+      subtitle: 'Simulasi CAT penuh',
+      route: '/tryout',
+    ),
+    (
+      icon: Icons.insights_outlined,
+      title: 'Analisis Performa',
+      subtitle: 'Lihat progres belajarmu',
+      route: '/analisis-performa',
+    ),
   ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.5,
-      children: _items.map((item) {
-        final isPerformance = item.title == 'Analisis Performa';
-        return InkWell(
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < _items.length; i++) ...[
+            if (i != 0) const SizedBox(width: 12),
+            Expanded(child: _buildTile(context, _items[i])),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTile(BuildContext context, ({IconData icon, String title, String subtitle, String route}) item) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => context.push(item.route),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          onTap: () {
-            if (isPerformance) {
-              context.push('/analisis-performa');
-            } else {
-              ref.read(selectedTabIndexProvider.notifier).state = 1;
-            }
-          },
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.neutral200),
+          border: Border.all(color: AppColors.neutral200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(item.icon, color: AppColors.brand500, size: 22),
+            const SizedBox(height: 16),
+            Text(
+              item.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: AppColors.neutral900,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(item.icon, color: AppColors.brand500, size: 22),
-                const Spacer(),
-                Text(
-                  item.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.neutral900,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  item.subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: AppColors.neutral500, fontSize: 11),
-                ),
-              ],
+            const SizedBox(height: 2),
+            Text(
+              item.subtitle,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: AppColors.neutral500, fontSize: 11),
             ),
-          ),
-        );
-      }).toList(),
+          ],
+        ),
+      ),
     );
   }
 }
