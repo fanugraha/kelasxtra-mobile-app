@@ -79,11 +79,37 @@ class ExamAttemptSession extends _$ExamAttemptSession {
       attempt: attempt,
       orderedQuestions: attempt.orderedQuestions,
       answers: answers,
+      // Resume langsung ke soal pertama yang BELUM dijawab -- bukan selalu
+      // soal #1 -- supaya user yang bukanya ulang (mis. app ke-kill di
+      // tengah ujian) tidak perlu scroll manual lewatin puluhan soal yang
+      // sudah dijawab sambil timer terus jalan. Kalau semua sudah terjawab
+      // (attempt.answers penuh), fallback ke soal #1 -- tidak ada "soal
+      // berikutnya yang belum dijawab" buat dituju.
+      currentIndex: _firstUnansweredIndex(attempt.orderedQuestions, answers),
       remainingSeconds: attempt.remainingSeconds,
       sectionRemainingSeconds:
           attempt.usesSectionTimers ? attempt.currentSection?.remainingSeconds : null,
       tabSwitchCount: attempt.tabSwitchCount,
     );
+  }
+
+  /// Cari index soal pertama yang belum ada jawabannya (opsi pilihan
+  /// kosong DAN essay kosong/blank) di [questions], berdasar [answers]
+  /// yang sudah di-hydrate dari attempt.answers. Return 0 kalau semua
+  /// soal sudah terjawab atau list soal kosong -- tidak ada "soal
+  /// berikutnya" yang lebih masuk akal buat dituju selain awal.
+  static int _firstUnansweredIndex(
+    List<ExamQuestion> questions,
+    Map<int, LocalAnswer> answers,
+  ) {
+    for (var i = 0; i < questions.length; i++) {
+      final answer = answers[questions[i].id];
+      final isAnswered = answer != null &&
+          (answer.selectedOptionId != null ||
+              (answer.essayAnswer?.trim().isNotEmpty ?? false));
+      if (!isAnswered) return i;
+    }
+    return 0;
   }
 
   /// Timer tunggal yang jalan tiap detik, ngurus DUA countdown sekaligus
