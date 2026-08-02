@@ -24,6 +24,8 @@ import '../../features/latihan_fokus/presentation/screens/latihan_roadmap_screen
 import '../../features/latihan_fokus/presentation/screens/latihan_topik_screen.dart';
 import '../../features/notifikasi/presentation/screens/notifikasi_screen.dart';
 import '../../features/shell/presentation/screens/app_shell.dart';
+import '../../features/transaksi/presentation/screens/riwayat_transaksi_screen.dart';
+import '../../features/transaksi/presentation/screens/transaksi_detail_screen.dart';
 
 part 'app_router.g.dart';
 
@@ -103,6 +105,17 @@ GoRouter goRouter(GoRouterRef ref) {
       GoRoute(
         path: '/paket-saya',
         builder: (_, __) => const PaketSayaScreen(),
+      ),
+      GoRoute(
+        path: '/transaksi',
+        builder: (_, __) => const RiwayatTransaksiScreen(),
+      ),
+      GoRoute(
+        path: '/transaksi/:id',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return TransaksiDetailScreen(transactionId: id);
+        },
       ),
       GoRoute(
         path: '/tryout',

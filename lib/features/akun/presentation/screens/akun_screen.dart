@@ -49,6 +49,11 @@ class AkunScreen extends ConsumerWidget {
                   onTap: () => context.push('/paket-saya'),
                 ),
                 _MenuTile(
+                  icon: Icons.receipt_long_outlined,
+                  label: 'Riwayat Transaksi',
+                  onTap: () => context.push('/transaksi'),
+                ),
+                _MenuTile(
                   icon: Icons.person_outline,
                   label: 'Edit Profil',
                   onTap: () => context.push('/akun/edit-profil'),
