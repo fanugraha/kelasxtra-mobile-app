@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../beranda/presentation/providers/beranda_provider.dart';
+import '../../../subscription/presentation/providers/subscription_provider.dart';
 
 class AkunScreen extends ConsumerWidget {
   const AkunScreen({super.key});
@@ -238,67 +238,70 @@ class _EmailNotVerifiedBannerState extends ConsumerState<_EmailNotVerifiedBanner
   }
 }
 
-/// TODO: kartu ini SENGAJA numpang data dari berandaNotifierProvider (yang
-/// sudah menggabungkan GET /my-subscription untuk kartu Beranda) supaya
-/// tidak ada 2 panggilan API terpisah untuk data yang sama. Begitu ada
-/// keputusan produk soal fitur Subscription penuh (riwayat langganan,
-/// upgrade/renew, pilih program) -- lib/features/subscription/ saat ini
-/// masih kosong -- pindahkan ke provider/repository Subscription sendiri
-/// dan lepas dependency silang ke Beranda ini.
+/// Sebelumnya kartu ini numpang data dari berandaNotifierProvider (satu-
+/// satunya konsumen GET /my-subscription waktu itu). Sekarang lib/features/
+/// subscription/ sudah ada provider sendiri (mySubscriptionNotifierProvider),
+/// jadi dependency silang ke Beranda dilepas -- kartu ini juga jadi entry
+/// point ke layar Langganan (daftar plan + detail).
 class _SubscriptionCard extends ConsumerWidget {
   const _SubscriptionCard();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final berandaAsync = ref.watch(berandaNotifierProvider);
+    final subAsync = ref.watch(mySubscriptionNotifierProvider);
 
-    return berandaAsync.when(
-      data: (data) {
-        final isActive = data.hasActiveSubscription;
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: isActive ? AppColors.success50 : AppColors.neutral100,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                isActive ? Icons.verified_outlined : Icons.info_outline,
-                color: isActive ? AppColors.success600 : AppColors.neutral500,
-                size: 22,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isActive ? 'Langganan Aktif' : 'Belum Berlangganan',
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.neutral900),
-                    ),
-                    if (isActive && data.subscriptionPackageName != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        data.subscriptionPackageName!,
-                        style: const TextStyle(fontSize: 12, color: AppColors.neutral600),
-                      ),
-                    ],
-                  ],
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => context.push('/langganan'),
+      child: subAsync.when(
+        data: (subscription) {
+          final isActive = subscription != null;
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isActive ? AppColors.success50 : AppColors.neutral100,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isActive ? Icons.verified_outlined : Icons.info_outline,
+                  color: isActive ? AppColors.success600 : AppColors.neutral500,
+                  size: 22,
                 ),
-              ),
-            ],
-          ),
-        );
-      },
-      loading: () => const SizedBox(
-        height: 56,
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isActive ? 'Langganan Aktif' : 'Belum Berlangganan',
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.neutral900),
+                      ),
+                      if (isActive) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          subscription.plan.name,
+                          style: const TextStyle(fontSize: 12, color: AppColors.neutral600),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, color: AppColors.neutral400, size: 18),
+              ],
+            ),
+          );
+        },
+        loading: () => const SizedBox(
+          height: 56,
+          child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+        ),
+        // Gagal-lembut: kalau /my-subscription gagal load (mis. offline), kartu
+        // status langganan cukup disembunyikan -- bukan alasan mengganggu
+        // seluruh halaman Akun yang isinya hal lain juga (profil, menu, dst).
+        error: (_, __) => const SizedBox.shrink(),
       ),
-      // Gagal-lembut: kalau data Beranda gagal load (mis. offline), kartu
-      // status langganan cukup disembunyikan -- bukan alasan mengganggu
-      // seluruh halaman Akun yang isinya hal lain juga (profil, menu, dst).
-      error: (_, __) => const SizedBox.shrink(),
     );
   }
 }
