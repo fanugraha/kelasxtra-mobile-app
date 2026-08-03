@@ -1,8 +1,11 @@
 // lib/features/subscription/presentation/screens/langganan_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../transaksi/data/repositories/transaksi_repository.dart';
+import '../../../transaksi/presentation/screens/checkout_webview_screen.dart';
 import '../providers/subscription_provider.dart';
 import 'subscription_format.dart';
 
@@ -275,12 +278,70 @@ void _showPlanDetail(BuildContext context, SubscriptionPlanModel plan) {
   );
 }
 
-class _PlanDetailSheet extends StatelessWidget {
+class _PlanDetailSheet extends ConsumerStatefulWidget {
   const _PlanDetailSheet({required this.plan});
   final SubscriptionPlanModel plan;
 
   @override
+  ConsumerState<_PlanDetailSheet> createState() => _PlanDetailSheetState();
+}
+
+class _PlanDetailSheetState extends ConsumerState<_PlanDetailSheet> {
+  bool _isCheckingOut = false;
+
+  Future<void> _handleBerlangganan() async {
+    final plan = widget.plan;
+
+    // Plan multi-select (program_slot_count terisi) butuh UI pemilihan
+    // program yang belum dibangun -- daripada checkout dengan program_ids
+    // asal/kosong dan kena 422 membingungkan, kasih tau jelas di sini.
+    if (!plan.isFixedProgram) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Belum tersedia'),
+          content: Text(
+            'Plan ini butuh memilih ${plan.programSlotCount} program terlebih dulu -- fitur pemilihan program masih dalam pengembangan.',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Oke')),
+          ],
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isCheckingOut = true);
+    try {
+      final transaction = await ref.read(transaksiRepositoryProvider).checkoutPlan(plan.id);
+      final token = transaction.snapToken;
+      if (token == null) throw Exception('Token pembayaran tidak tersedia. Coba lagi.');
+
+      if (!mounted) return;
+      // Sengaja TIDAK nutup bottom sheet dulu -- context.push jalan di atas
+      // sheet yang masih ada (sheet-nya cuma ketutup visual, bukan
+      // di-dispose), begitu CheckoutWebViewScreen pop balik baru sheet ini
+      // ditutup manual di bawah. Menghindari masalah context defunct kalau
+      // sheet ditutup duluan sebelum push selesai.
+      await context.push<CheckoutResult>(
+        '/checkout',
+        extra: CheckoutArgs(transactionId: transaction.id, snapToken: token),
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+    } finally {
+      if (mounted) setState(() => _isCheckingOut = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final plan = widget.plan;
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
@@ -327,21 +388,19 @@ class _PlanDetailSheet extends StatelessWidget {
                   ),
                 ),
             ],
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(color: AppColors.gold100, borderRadius: BorderRadius.circular(12)),
-              child: const Row(
-                children: [
-                  Icon(Icons.info_outline, color: AppColors.gold600, size: 16),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Pembelian langganan langsung dari app segera hadir.',
-                      style: TextStyle(color: AppColors.neutral700, fontSize: 12),
-                    ),
-                  ),
-                ],
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _isCheckingOut ? null : _handleBerlangganan,
+                icon: _isCheckingOut
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.workspace_premium_outlined, size: 18),
+                label: Text(_isCheckingOut ? 'Menyiapkan pembayaran...' : 'Berlangganan'),
               ),
             ),
           ],
@@ -350,4 +409,3 @@ class _PlanDetailSheet extends StatelessWidget {
     );
   }
 }
-

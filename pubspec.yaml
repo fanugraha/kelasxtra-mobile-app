@@ -34,8 +34,11 @@ dependencies:
   equatable: ^2.0.5
   connectivity_plus: ^6.0.5
 
-  # Webview untuk Midtrans Snap (checkout)
+  # Webview untuk Midtrans Snap (checkout) -- webview_flutter TIDAK punya
+  # implementasi untuk Flutter Web, jadi url_launcher dipakai sebagai
+  # fallback khusus platform web (buka Snap di tab baru).
   webview_flutter: ^4.8.0
+  url_launcher: ^6.3.0
 
   cupertino_icons: ^1.0.8
   google_sign_in: ^6.2.2
@@ -60,3 +63,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icons/
+

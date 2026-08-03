@@ -33,12 +33,35 @@ class TransaksiApiService {
   }
 
   /// POST /transactions/{id}/resume -- ambil snap_token baru untuk
-  /// transaksi pending yang mau dilanjutkan pembayarannya. Belum dipakai
-  /// UI (butuh WebView Midtrans, menyusul di step berikutnya) tapi data
-  /// layer-nya disiapkan sekarang.
+  /// transaksi pending yang mau dilanjutkan pembayarannya.
   Future<String> resumeTransaction(int id) async {
     final response = await _dio.post(ApiEndpoints.transactionResume(id));
     return response.data['snap_token'] as String;
+  }
+
+  /// POST /transactions/checkout -- beli paket (package_id). Backend
+  /// otomatis resume kalau ternyata sudah ada transaksi pending untuk
+  /// paket yang sama (lihat komentar TransactionController@checkout),
+  /// jadi aman dipanggil berkali-kali tanpa bikin baris dobel.
+  Future<TransactionModel> checkoutPackage(int packageId, {String? promoCode}) async {
+    final response = await _dio.post(ApiEndpoints.checkout, data: {
+      'package_id': packageId,
+      if (promoCode != null) 'promo_code': promoCode,
+    });
+    return TransactionModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// POST /transactions/checkout -- beli plan langganan (plan_id).
+  /// [programIds] cuma wajib diisi kalau plan-nya multi-select
+  /// (program_slot_count terisi) -- untuk plan fix-ke-1-program, backend
+  /// otomatis pakai plan.program_id, tidak perlu dikirim.
+  Future<TransactionModel> checkoutPlan(int planId, {String? promoCode, List<int>? programIds}) async {
+    final response = await _dio.post(ApiEndpoints.checkout, data: {
+      'plan_id': planId,
+      if (promoCode != null) 'promo_code': promoCode,
+      if (programIds != null) 'program_ids': programIds,
+    });
+    return TransactionModel.fromJson(response.data as Map<String, dynamic>);
   }
 }
 

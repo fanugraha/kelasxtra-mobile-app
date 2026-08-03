@@ -53,6 +53,10 @@ class TransactionModel with _$TransactionModel {
     @JsonKey(name: 'paid_at') String? paidAt,
     @JsonKey(name: 'expires_at') String? expiresAt,
     @JsonKey(name: 'created_at') String? createdAt,
+    // Cuma terisi di response POST /transactions/checkout (backend
+    // nge-attach lewat setAttribute, bukan kolom DB asli) -- dipakai buat
+    // buka CheckoutWebViewScreen langsung setelah checkout sukses.
+    @JsonKey(name: 'snap_token') String? snapToken,
   }) = _TransactionModel;
 
   const TransactionModel._();

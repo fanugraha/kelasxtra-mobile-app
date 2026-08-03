@@ -36,6 +36,22 @@ class TransaksiRepository {
       throw ApiException.fromDioException(e);
     }
   }
+
+  Future<TransactionModel> checkoutPackage(int packageId, {String? promoCode}) async {
+    try {
+      return await _api.checkoutPackage(packageId, promoCode: promoCode);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  Future<TransactionModel> checkoutPlan(int planId, {String? promoCode, List<int>? programIds}) async {
+    try {
+      return await _api.checkoutPlan(planId, promoCode: promoCode, programIds: programIds);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
 }
 
 @riverpod

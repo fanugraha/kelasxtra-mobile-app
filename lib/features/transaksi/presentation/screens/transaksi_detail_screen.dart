@@ -1,9 +1,12 @@
 // lib/features/transaksi/presentation/screens/transaksi_detail_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../data/repositories/transaksi_repository.dart';
 import '../providers/transaksi_provider.dart';
+import 'checkout_webview_screen.dart';
 import 'transaksi_format.dart';
 
 class TransaksiDetailScreen extends ConsumerWidget {
@@ -154,27 +157,63 @@ class _DetailBody extends StatelessWidget {
         ),
         if (transaction.isPending) ...[
           const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.gold100,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.info_outline, color: AppColors.gold600, size: 18),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Transaksi ini menunggu pembayaran. Fitur lanjutkan pembayaran dari sini akan tersedia di update berikutnya.',
-                    style: TextStyle(color: AppColors.neutral700, fontSize: 12, height: 1.4),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _ResumePaymentButton(transactionId: transaction.id),
         ],
       ],
+    );
+  }
+}
+
+/// Tombol "Lanjutkan Pembayaran" -- state loading-nya lokal (ConsumerStatefulWidget)
+/// karena ini aksi sekali-tekan, bukan data yang perlu di-watch lewat provider.
+class _ResumePaymentButton extends ConsumerStatefulWidget {
+  const _ResumePaymentButton({required this.transactionId});
+  final int transactionId;
+
+  @override
+  ConsumerState<_ResumePaymentButton> createState() => _ResumePaymentButtonState();
+}
+
+class _ResumePaymentButtonState extends ConsumerState<_ResumePaymentButton> {
+  bool _isLoading = false;
+
+  Future<void> _resume() async {
+    setState(() => _isLoading = true);
+    try {
+      final snapToken = await ref.read(transaksiRepositoryProvider).resumeTransaction(widget.transactionId);
+      if (!mounted) return;
+
+      await context.push<CheckoutResult>(
+        '/checkout',
+        extra: CheckoutArgs(transactionId: widget.transactionId, snapToken: snapToken),
+      );
+      // CheckoutWebViewScreen sudah invalidate transaksiDetailProvider
+      // sendiri sebelum pop -- tidak perlu refresh manual lagi di sini.
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: _isLoading ? null : _resume,
+        icon: _isLoading
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              )
+            : const Icon(Icons.payment, size: 18),
+        label: Text(_isLoading ? 'Menyiapkan pembayaran...' : 'Lanjutkan Pembayaran'),
+      ),
     );
   }
 }
