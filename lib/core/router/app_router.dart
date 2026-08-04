@@ -10,27 +10,12 @@ import '../../features/auth/presentation/screens/register_form_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/check_email_screen.dart';
-import '../../features/akun/presentation/screens/edit_profil_screen.dart';
-import '../../features/akun/presentation/screens/ganti_password_screen.dart';
-import '../../features/beranda/presentation/screens/analisis_performa_screen.dart';
-import '../../features/enrollment/presentation/screens/paket_saya_screen.dart';
-import '../../features/katalog/presentation/screens/tryout_screen.dart';
-import '../../features/exam_engine/presentation/screens/exam_attempt_screen.dart';
-import '../../features/exam_engine/presentation/screens/exam_list_screen.dart';
-import '../../features/exam_engine/presentation/screens/exam_review_screen.dart';
-import '../../features/exam_engine/presentation/screens/exam_summary_screen.dart';
-import '../../features/latihan_fokus/presentation/screens/latihan_kategori_screen.dart';
-import '../../features/latihan_fokus/presentation/screens/latihan_roadmap_screen.dart';
-import '../../features/latihan_fokus/presentation/screens/latihan_topik_screen.dart';
-import '../../features/notifikasi/presentation/screens/notifikasi_screen.dart';
-import '../../features/shell/presentation/screens/app_shell.dart';
-import '../../features/subscription/presentation/screens/langganan_screen.dart';
-import '../../features/transaksi/presentation/screens/checkout_webview_screen.dart';
-import '../../features/transaksi/presentation/screens/riwayat_transaksi_screen.dart';
-import '../../features/transaksi/presentation/screens/transaksi_detail_screen.dart';
+// TODO: import screen beranda saat modul beranda/katalog sudah dibuat.
 
 part 'app_router.g.dart';
 
+/// Notifier kecil yang cuma bertugas "membangunkan" GoRouter tiap kali
+/// authNotifierProvider berubah, supaya redirect logic dievaluasi ulang.
 class _RouterRefreshNotifier extends ChangeNotifier {
   _RouterRefreshNotifier(Ref ref) {
     ref.listen(authNotifierProvider, (_, __) => notifyListeners());
@@ -49,6 +34,9 @@ GoRouter goRouter(GoRouterRef ref) {
       final loc = state.matchedLocation;
 
       final isSplash = loc == '/splash';
+      // '/register/form' & '/check-email' ikut dianggap bagian dari alur
+      // auth yang belum-login, supaya redirect tidak menendang user keluar
+      // di tengah proses registrasi.
       final isAuthRoute = loc == '/login' ||
           loc == '/register' ||
           loc == '/register/form' ||
@@ -87,102 +75,24 @@ GoRouter goRouter(GoRouterRef ref) {
         path: '/forgot-password',
         builder: (_, __) => const ForgotPasswordScreen(),
       ),
-      GoRoute(path: '/home', builder: (_, __) => const AppShell()),
+      // TODO: ganti dengan HomeScreen sungguhan dari modul beranda.
       GoRoute(
-        path: '/notifications',
-        builder: (_, __) => const NotifikasiScreen(),
-      ),
-      GoRoute(
-        path: '/akun/edit-profil',
-        builder: (_, __) => const EditProfilScreen(),
-      ),
-      GoRoute(
-        path: '/akun/ganti-password',
-        builder: (_, __) => const GantiPasswordScreen(),
-      ),
-      GoRoute(
-        path: '/analisis-performa',
-        builder: (_, __) => const AnalisisPerformaScreen(),
-      ),
-      GoRoute(
-        path: '/paket-saya',
-        builder: (_, __) => const PaketSayaScreen(),
-      ),
-      GoRoute(
-        path: '/transaksi',
-        builder: (_, __) => const RiwayatTransaksiScreen(),
-      ),
-      GoRoute(
-        path: '/transaksi/:id',
-        builder: (context, state) {
-          final id = int.parse(state.pathParameters['id']!);
-          return TransaksiDetailScreen(transactionId: id);
-        },
-      ),
-      GoRoute(
-        path: '/langganan',
-        builder: (_, __) => const LangganganScreen(),
-      ),
-      GoRoute(
-        path: '/checkout',
-        builder: (context, state) {
-          final args = state.extra as CheckoutArgs;
-          return CheckoutWebViewScreen(transactionId: args.transactionId, snapToken: args.snapToken);
-        },
-      ),
-      GoRoute(
-        path: '/tryout',
-        builder: (_, __) => const TryoutScreen(),
-      ),
-      GoRoute(
-        path: '/latihan-soal',
-        builder: (_, __) => const LatihanKategoriScreen(),
-      ),
-      GoRoute(
-        path: '/latihan-soal/kategori/:taxonomyId',
-        builder: (context, state) {
-          final taxonomyId = int.parse(state.pathParameters['taxonomyId']!);
-          final categoryName = state.extra as String?;
-          return LatihanTopikScreen(taxonomyId: taxonomyId, categoryName: categoryName);
-        },
-      ),
-      GoRoute(
-        path: '/latihan-soal/topik/:topicId',
-        builder: (context, state) {
-          final topicId = int.parse(state.pathParameters['topicId']!);
-          final topicName = state.extra as String?;
-          return LatihanRoadmapScreen(topicId: topicId, topicName: topicName);
-        },
-      ),
-      GoRoute(
-        path: '/paket/:packageId/exams',
-        builder: (context, state) {
-          final packageId = int.parse(state.pathParameters['packageId']!);
-          return ExamListScreen(packageId: packageId);
-        },
-      ),
-      GoRoute(
-        path: '/exams/:examId/summary',
-        builder: (context, state) {
-          final examId = int.parse(state.pathParameters['examId']!);
-          return ExamSummaryScreen(examId: examId);
-        },
-      ),
-      GoRoute(
-        path: '/exam-attempts/:attemptId',
-        builder: (context, state) {
-          final attemptId = int.parse(state.pathParameters['attemptId']!);
-          return ExamAttemptScreen(attemptId: attemptId);
-        },
-      ),
-      GoRoute(
-        path: '/exam-attempts/:attemptId/review',
-        builder: (context, state) {
-          final attemptId = int.parse(state.pathParameters['attemptId']!);
-          return ExamReviewScreen(attemptId: attemptId);
-        },
+        path: '/home',
+        builder: (_, __) => const _NotImplementedPlaceholder(title: 'Beranda'),
       ),
     ],
   );
 }
 
+class _NotImplementedPlaceholder extends StatelessWidget {
+  const _NotImplementedPlaceholder({required this.title});
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: Center(child: Text('$title — belum diimplementasikan.')),
+    );
+  }
+}

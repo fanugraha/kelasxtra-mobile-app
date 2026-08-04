@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/providers/navigation_provider.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/formatters.dart';
 import '../providers/beranda_provider.dart';
 
 class BerandaScreen extends ConsumerWidget {
@@ -540,18 +541,6 @@ class _PracticeGrid extends ConsumerWidget {
   }
 }
 
-/// Format angka jadi "Rp20.000" (titik sebagai pemisah ribuan, tanpa
-/// desimal -- harga selalu bulat rupiah di sini).
-String _formatRupiah(double value) {
-  final digits = value.round().toString().split('').reversed.toList();
-  final grouped = <String>[];
-  for (var i = 0; i < digits.length; i++) {
-    if (i != 0 && i % 3 == 0) grouped.add('.');
-    grouped.add(digits[i]);
-  }
-  return 'Rp${grouped.reversed.join()}';
-}
-
 /// Bentuk pita diskon bergaya e-commerce (flag/notch di sisi kanan) --
 /// dipakai di pojok kiri-atas gambar card paket, mirip badge "-50%" di
 /// Shopee/Tokopedia.
@@ -699,7 +688,7 @@ class _RecommendedPackages extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        _formatRupiah(package.discountPrice ?? package.price),
+                        formatRupiah(package.discountPrice ?? package.price),
                         style: const TextStyle(
                           color: AppColors.danger600,
                           fontSize: 15,
@@ -711,7 +700,7 @@ class _RecommendedPackages extends StatelessWidget {
                         Row(
                           children: [
                             Text(
-                              _formatRupiah(package.price),
+                              formatRupiah(package.price),
                               style: const TextStyle(
                                 color: AppColors.neutral400,
                                 fontSize: 10,

@@ -254,11 +254,9 @@ class _EmptyState extends StatelessWidget {
               style: TextStyle(color: AppColors.neutral500, fontSize: 13),
             ),
             const SizedBox(height: 16),
-            OutlinedButton(
-              // TODO: arahkan ke katalog paket begitu screen-nya dibangun
-              // (sekarang belum ada, lihat rencana §5.B di dokumen status).
-              onPressed: () => context.pop(),
-              child: const Text('Kembali'),
+            FilledButton(
+              onPressed: () => context.push('/katalog', extra: PackageType.reguler),
+              child: const Text('Lihat Katalog Tryout'),
             ),
           ],
         ),

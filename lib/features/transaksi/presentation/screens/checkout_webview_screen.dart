@@ -25,6 +25,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../../core/config/env.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../enrollment/presentation/providers/enrollment_provider.dart';
 import '../../../subscription/presentation/providers/subscription_provider.dart';
 import '../../data/repositories/transaksi_repository.dart';
 import '../providers/transaksi_provider.dart';
@@ -133,10 +134,13 @@ class _CheckoutWebViewScreenState extends ConsumerState<CheckoutWebViewScreen> {
 
     // Refresh riwayat & detail supaya begitu user balik ke layar
     // sebelumnya, datanya sudah status terbaru -- bukan nunggu manual
-    // pull-to-refresh.
+    // pull-to-refresh. Checkout endpoint ini dipakai bersama untuk beli
+    // paket ATAU subscription (lihat catatan CheckoutArgs) -- invalidate
+    // dua-duanya sekaligus daripada caller harus tahu mana yang dibeli.
     ref.invalidate(transaksiNotifierProvider);
     ref.invalidate(transaksiDetailProvider(widget.transactionId));
     ref.invalidate(mySubscriptionNotifierProvider);
+    ref.invalidate(enrollmentNotifierProvider);
 
     Navigator.of(context).pop(CheckoutResult(transactionId: widget.transactionId, status: status));
   }
