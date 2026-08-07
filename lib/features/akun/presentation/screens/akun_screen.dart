@@ -63,6 +63,20 @@ class AkunScreen extends ConsumerWidget {
                   label: 'Ganti Password',
                   onTap: () => context.push('/akun/ganti-password'),
                 ),
+                _MenuTile(
+                  icon: Icons.shield_outlined,
+                  label: 'Privasi',
+                  onTap: () => context.push('/privasi'),
+                ),
+                // Cuma tutor/admin -- endpoint-nya sendiri role-gated
+                // (403 kalau bukan), ini cuma menyembunyikan menu supaya
+                // siswa biasa tidak lihat tombol yang pasti gagal.
+                if (user.role == UserRole.tutor || user.role == UserRole.admin)
+                  _MenuTile(
+                    icon: Icons.rate_review_outlined,
+                    label: 'Penilaian Essay',
+                    onTap: () => context.push('/tutor/essay-queue'),
+                  ),
                 // TODO: menu "Ganti Password" di atas seharusnya disembunyikan
                 // atau di-disable kalau user login via Google (googleId !=
                 // null) -- akun Google tidak punya current_password untuk

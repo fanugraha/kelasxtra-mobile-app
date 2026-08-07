@@ -1,3 +1,4 @@
+cat > lib/core/router/app_router.dart << 'EOF_ROUTER'
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart' show Ref;
 import 'package:go_router/go_router.dart';
@@ -25,13 +26,11 @@ import '../../features/latihan_fokus/presentation/screens/latihan_kategori_scree
 import '../../features/latihan_fokus/presentation/screens/latihan_roadmap_screen.dart';
 import '../../features/latihan_fokus/presentation/screens/latihan_topik_screen.dart';
 import '../../features/notifikasi/presentation/screens/notifikasi_screen.dart';
-import '../../features/privasi/presentation/screens/privasi_screen.dart';
 import '../../features/shell/presentation/screens/app_shell.dart';
 import '../../features/subscription/presentation/screens/langganan_screen.dart';
 import '../../features/transaksi/presentation/screens/checkout_webview_screen.dart';
 import '../../features/transaksi/presentation/screens/riwayat_transaksi_screen.dart';
 import '../../features/transaksi/presentation/screens/transaksi_detail_screen.dart';
-import '../../features/tutor/presentation/screens/tutor_essay_queue_screen.dart';
 
 part 'app_router.g.dart';
 
@@ -103,14 +102,6 @@ GoRouter goRouter(GoRouterRef ref) {
       GoRoute(
         path: '/akun/ganti-password',
         builder: (_, __) => const GantiPasswordScreen(),
-      ),
-      GoRoute(
-        path: '/privasi',
-        builder: (_, __) => const PrivasiScreen(),
-      ),
-      GoRoute(
-        path: '/tutor/essay-queue',
-        builder: (_, __) => const TutorEssayQueueScreen(),
       ),
       GoRoute(
         path: '/analisis-performa',
@@ -205,3 +196,6 @@ GoRouter goRouter(GoRouterRef ref) {
   );
 }
 
+EOF_ROUTER
+
+echo 'app_router.dart dipulihkan ke versi lengkap (AppShell + semua route Exam Engine/Katalog/Transaksi/Subscription) + route /katalog.'
