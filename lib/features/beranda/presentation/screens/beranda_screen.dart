@@ -66,34 +66,35 @@ class BerandaScreen extends ConsumerWidget {
                   ),
                 ],
 
-                // ---------- Progres Kamu ----------
+                // ---------- Latihan & Progres (digabung) ----------
+                // SEBELUMNYA 2 section terpisah ("Progres Kamu" &
+                // "Latihan & Try Out") dengan header + jarak sendiri-
+                // sendiri -- terasa terpecah padahal isinya saling
+                // berkaitan langsung (grid akses cepat DAN breakdown skor
+                // sama-sama soal "belajar di mana selanjutnya"). Digabung
+                // 1 section: grid dulu (aksi utama), breakdown skor di
+                // bawahnya (konteks pendukung), 1 header saja.
                 const SizedBox(height: 28),
                 _SectionHeader(
-                  title: 'Progres Kamu',
+                  title: 'Latihan & Progres',
                   actionLabel: 'Detail',
                   onAction: () => context.push('/analisis-performa'),
                 ),
                 const SizedBox(height: 12),
+                const _PracticeGrid(),
+                const SizedBox(height: 16),
                 if (data.performance.sections.isNotEmpty) ...[
                   _StatsRow(averageScore: data.averageScore, rank: data.rank),
                   const SizedBox(height: 12),
                   _ProgressSectionsRow(sections: data.performance.sections),
                 ] else if (data.performance.cta != null)
-                  _StartPracticeCta(cta: data.performance.cta!)
-                else
-                  const _StatsRow(averageScore: 0, rank: 0),
+                  _StartPracticeCta(cta: data.performance.cta!),
 
                 // ---------- Upgrade Langganan (kondisional) ----------
                 if (data.subscriptionPlans.isNotEmpty) ...[
                   const SizedBox(height: 28),
                   _UpgradeLanggananCard(plans: data.subscriptionPlans),
                 ],
-
-                // ---------- Latihan & Try Out ----------
-                const SizedBox(height: 28),
-                const _SectionHeader(title: 'Latihan & Try Out'),
-                const SizedBox(height: 12),
-                const _PracticeGrid(),
 
                 // ---------- Rekomendasi Paket (jalur beli-terpisah) ----------
                 if (data.recommendedPackages.isNotEmpty) ...[
@@ -365,7 +366,17 @@ class _ContinueCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // FIX BUG: sebelumnya pakai `exam != null` untuk nentuin "Lanjutkan"
+    // vs "Mulai" -- SALAH, karena `exam` (dari /my-exams/latest-attempted)
+    // hampir selalu terisi (backend fallback ke exam rekomendasi kalau
+    // belum ada progress apa pun, lihat catatan panjang di
+    // BerandaApiService.getLatestAttemptedExamId()). Akibatnya begitu user
+    // baru saja MENYELESAIKAN ujian, card ini tetap bilang "Lanjutkan
+    // Belajar" ke exam yang sama -- padahal sudah beres, tidak ada yang
+    // perlu dilanjutkan. Sinyal yang benar: inProgressAttemptId != null,
+    // yang cuma keisi kalau BENAR ada attempt yang belum selesai.
     final hasExam = exam != null;
+    final isResuming = exam?.inProgressAttemptId != null;
 
     return Container(
       width: double.infinity,
@@ -401,14 +412,14 @@ class _ContinueCard extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
-                        hasExam ? Icons.play_circle_outline : Icons.bolt_outlined,
+                        isResuming ? Icons.play_circle_outline : Icons.bolt_outlined,
                         color: Colors.white,
                         size: 20,
                       ),
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      hasExam ? 'Lanjutkan Belajar' : 'Mulai Belajar',
+                      isResuming ? 'Lanjutkan Belajar' : 'Mulai Belajar',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 13,
@@ -426,7 +437,7 @@ class _ContinueCard extends ConsumerWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (hasExam) ...[
+                if (isResuming) ...[
                   const SizedBox(height: 12),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
@@ -448,10 +459,11 @@ class _ContinueCard extends ConsumerWidget {
                   width: double.infinity,
                   child: FilledButton(
                     // hasExam -> examId dari ContinueExamData sudah cukup untuk
-                    // masuk ke screen ringkasan exam (Fase 2), yang lalu push ke
-                    // exam-taking UI (Fase 3) begitu attempt dibuat/di-resume.
-                    // !hasExam -> belum ada exam untuk dilanjutkan sama sekali,
-                    // tetap arahkan ke tab Latihan seperti sebelumnya.
+                    // masuk ke screen ringkasan exam, entah itu mulai baru
+                    // (isResuming false) atau lanjut attempt in-progress
+                    // (isResuming true) -- ExamSummaryScreen yang urus keduanya.
+                    // !hasExam -> belum ada exam untuk direkomendasikan sama
+                    // sekali, arahkan ke tab Latihan.
                     onPressed: () {
                       if (hasExam) {
                         context.push('/exams/${exam!.examId}/summary');
@@ -468,7 +480,9 @@ class _ContinueCard extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: Text(hasExam ? 'Lanjutkan' : 'Cari Latihan'),
+                    child: Text(
+                      !hasExam ? 'Cari Latihan' : (isResuming ? 'Lanjutkan' : 'Mulai'),
+                    ),
                   ),
                 ),
               ],
@@ -810,18 +824,127 @@ class _PromoCarouselState extends State<_PromoCarousel> {
   }
 }
 
+/// Ikon custom gambar sendiri (CustomPainter), BUKAN Material Icons --
+/// bentuknya dua-lapis (warna solid + warna transparan di belakang) supaya
+/// ada kesan "berlapis"/dekoratif, bukan cuma outline sederhana kayak
+/// Icons.topic_outlined dkk. Ukuran painting selalu relatif ke `size`
+/// (bukan angka fix) supaya tetap proporsional kalau suatu saat dipakai
+/// di ukuran lain.
+class _StackedTopicIconPainter extends CustomPainter {
+  const _StackedTopicIconPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final back = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.10, h * 0.28, w * 0.62, h * 0.50),
+      Radius.circular(w * 0.09),
+    );
+    final front = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.28, h * 0.14, w * 0.62, h * 0.50),
+      Radius.circular(w * 0.09),
+    );
+    canvas.drawRRect(back, Paint()..color = color.withOpacity(0.35));
+    canvas.drawRRect(front, Paint()..color = color);
+
+    final line = Paint()
+      ..color = Colors.white.withOpacity(0.9)
+      ..strokeWidth = w * 0.055
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(w * 0.40, h * 0.33), Offset(w * 0.76, h * 0.33), line);
+    canvas.drawLine(Offset(w * 0.40, h * 0.47), Offset(w * 0.62, h * 0.47), line);
+  }
+
+  @override
+  bool shouldRepaint(covariant _StackedTopicIconPainter oldDelegate) => oldDelegate.color != color;
+}
+
+class _StopwatchIconPainter extends CustomPainter {
+  const _StopwatchIconPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    final center = Offset(w * 0.5, h * 0.58);
+    final radius = w * 0.36;
+
+    canvas.drawCircle(center, radius, Paint()..color = color);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(center: Offset(w * 0.5, h * 0.12), width: w * 0.26, height: h * 0.14),
+        Radius.circular(w * 0.05),
+      ),
+      Paint()..color = color.withOpacity(0.55),
+    );
+    final hand = Paint()
+      ..color = Colors.white
+      ..strokeWidth = w * 0.065
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(center, Offset(center.dx + radius * 0.48, center.dy - radius * 0.42), hand);
+    canvas.drawCircle(center, w * 0.05, Paint()..color = Colors.white);
+  }
+
+  @override
+  bool shouldRepaint(covariant _StopwatchIconPainter oldDelegate) => oldDelegate.color != color;
+}
+
+class _TrendUpIconPainter extends CustomPainter {
+  const _TrendUpIconPainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width, h = size.height;
+    const heights = [0.34, 0.56, 0.82];
+    final barWidth = w * 0.18;
+    final gap = w * 0.10;
+    var x = w * 0.08;
+    for (var i = 0; i < heights.length; i++) {
+      final barH = h * heights[i];
+      final rect = Rect.fromLTWH(x, h * 0.88 - barH, barWidth, barH);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, Radius.circular(w * 0.045)),
+        Paint()..color = color.withOpacity(0.45 + i * 0.2),
+      );
+      x += barWidth + gap;
+    }
+    final dot = Offset(x - gap - barWidth / 2, h * 0.88 - h * heights.last - h * 0.10);
+    canvas.drawCircle(dot, w * 0.065, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(covariant _TrendUpIconPainter oldDelegate) => oldDelegate.color != color;
+}
+
 /// Grid akses cepat, 3 item, tiap item push langsung ke rute tujuannya.
 ///
 /// Warna badge SENGAJA dibedakan per tile (bukan brand500 semua seperti
 /// draft pertama) -- brand-maroon dicadangkan untuk elemen core (Continue
 /// Card, tombol utama), grid ini pakai palet aksen (info/gold/success)
-/// supaya tidak terasa monokrom, sesuai arahan redesign.
+/// supaya tidak terasa monokrom. Ikon juga custom-painted (bukan Material
+/// Icons) supaya tidak terasa generik/kaku.
 class _PracticeGrid extends ConsumerWidget {
   const _PracticeGrid();
 
-  static const _items = [
+  // Tipe list dieksplisitkan (bukan dibiarkan diinferensi dari literal) --
+  // tiap entri punya `painter` yang tear-off ke CLASS PAINTER BEDA
+  // (_StackedTopicIconPainter, _StopwatchIconPainter, _TrendUpIconPainter),
+  // jadi Dart butuh tipe target eksplisit `CustomPainter Function(Color)`
+  // supaya masing-masing constructor tear-off itu di-upcast konsisten,
+  // bukan coba infer least-upper-bound sendiri dari 3 tipe berbeda.
+  static const List<
+      ({
+        CustomPainter Function(Color) painter,
+        String title,
+        String subtitle,
+        String route,
+        Color color,
+        Color bgColor,
+      })> _items = [
     (
-      icon: Icons.topic_outlined,
+      painter: _StackedTopicIconPainter.new,
       title: 'Latihan Soal per Topik',
       subtitle: 'Susun roadmap topik',
       route: '/latihan-soal',
@@ -829,7 +952,7 @@ class _PracticeGrid extends ConsumerWidget {
       bgColor: AppColors.info100,
     ),
     (
-      icon: Icons.timer_outlined,
+      painter: _StopwatchIconPainter.new,
       title: 'Tryout',
       subtitle: 'Simulasi CAT penuh',
       route: '/tryout',
@@ -837,7 +960,7 @@ class _PracticeGrid extends ConsumerWidget {
       bgColor: AppColors.gold100,
     ),
     (
-      icon: Icons.insights_outlined,
+      painter: _TrendUpIconPainter.new,
       title: 'Analisis Performa',
       subtitle: 'Lihat progres belajarmu',
       route: '/analisis-performa',
@@ -863,7 +986,14 @@ class _PracticeGrid extends ConsumerWidget {
 
   Widget _buildTile(
     BuildContext context,
-    ({IconData icon, String title, String subtitle, String route, Color color, Color bgColor}) item,
+    ({
+      CustomPainter Function(Color) painter,
+      String title,
+      String subtitle,
+      String route,
+      Color color,
+      Color bgColor,
+    }) item,
   ) {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
@@ -886,12 +1016,14 @@ class _PracticeGrid extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              width: 36,
+              height: 36,
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: item.bgColor,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(item.icon, color: item.color, size: 20),
+              child: CustomPaint(painter: item.painter(item.color)),
             ),
             const SizedBox(height: 12),
             Text(

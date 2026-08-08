@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../beranda/presentation/providers/beranda_provider.dart';
 import '../providers/exam_attempt_provider.dart';
 import '../providers/exam_provider.dart';
 import '../widgets/question_html_text.dart';
@@ -120,7 +121,21 @@ class _ExamAttemptScreenState extends ConsumerState<ExamAttemptScreen>
         // selesai ujian bisa nampilin "0 kali dikerjakan" / tanpa kartu
         // skor sama sekali walau attempt-nya sudah graded di server.
         ref.invalidate(examSummaryProvider(examId));
-        if (mounted) context.go('/exams/$examId/summary');
+        // Continue Card di Beranda pakai cache lama (exam ini masih
+        // dianggap "sedang dikerjakan") kalau tidak di-invalidate -- begitu
+        // user balik ke Beranda, langsung fetch ulang state terbaru
+        // (in_progress_attempt_id sudah null sekarang).
+        ref.invalidate(berandaNotifierProvider);
+        // FIX: context.go('/exams/$examId/summary') SEBELUMNYA mengganti
+        // seluruh stack navigasi (perilaku go_router untuk go()), jadi
+        // Beranda ikut terhapus dari histori -- back dari summary keluar
+        // app, bukan balik ke Beranda. context.go('/home') dulu untuk
+        // reset stack ke root yang benar, baru push summary di atasnya --
+        // sekarang back dari summary balik ke Beranda seperti seharusnya.
+        if (mounted) {
+          context.go('/home');
+          context.push('/exams/$examId/summary');
+        }
       }
     });
 
