@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../katalog/data/models/promo_model.dart';
+import '../../../katalog/presentation/widgets/promo_code_field.dart';
 import '../../../transaksi/data/repositories/transaksi_repository.dart';
 import '../../../transaksi/presentation/screens/checkout_webview_screen.dart';
 import '../providers/subscription_provider.dart';
@@ -288,6 +290,7 @@ class _PlanDetailSheet extends ConsumerStatefulWidget {
 
 class _PlanDetailSheetState extends ConsumerState<_PlanDetailSheet> {
   bool _isCheckingOut = false;
+  PromoValidationResult? _promo;
 
   Future<void> _handleBerlangganan() async {
     final plan = widget.plan;
@@ -313,7 +316,9 @@ class _PlanDetailSheetState extends ConsumerState<_PlanDetailSheet> {
 
     setState(() => _isCheckingOut = true);
     try {
-      final transaction = await ref.read(transaksiRepositoryProvider).checkoutPlan(plan.id);
+      final transaction = await ref
+          .read(transaksiRepositoryProvider)
+          .checkoutPlan(plan.id, promoCode: _promo?.promo.code);
       final token = transaction.snapToken;
       if (token == null) throw Exception('Token pembayaran tidak tersedia. Coba lagi.');
 
@@ -363,9 +368,24 @@ class _PlanDetailSheetState extends ConsumerState<_PlanDetailSheet> {
               Text(plan.tagline!, style: const TextStyle(color: AppColors.neutral500, fontSize: 13)),
             ],
             const SizedBox(height: 12),
-            Text(
-              '${formatRupiah(plan.price)} / ${formatDurasi(plan.durationDays)}',
-              style: const TextStyle(color: AppColors.brand600, fontSize: 18, fontWeight: FontWeight.w700),
+            Row(
+              children: [
+                Text(
+                  '${formatRupiah(_promo?.finalAmount ?? plan.price)} / ${formatDurasi(plan.durationDays)}',
+                  style: const TextStyle(color: AppColors.brand600, fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+                if (_promo != null) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    formatRupiah(plan.price),
+                    style: const TextStyle(
+                      color: AppColors.neutral400,
+                      fontSize: 13,
+                      decoration: TextDecoration.lineThrough,
+                    ),
+                  ),
+                ],
+              ],
             ),
             if (plan.description != null) ...[
               const SizedBox(height: 12),
@@ -389,6 +409,16 @@ class _PlanDetailSheetState extends ConsumerState<_PlanDetailSheet> {
                 ),
             ],
             const SizedBox(height: 20),
+            const Text(
+              'Kode Promo',
+              style: TextStyle(color: AppColors.neutral900, fontSize: 13.5, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            PromoCodeField(
+              planId: plan.id,
+              onResultChanged: (result) => setState(() => _promo = result),
+            ),
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
@@ -409,3 +439,4 @@ class _PlanDetailSheetState extends ConsumerState<_PlanDetailSheet> {
     );
   }
 }
+

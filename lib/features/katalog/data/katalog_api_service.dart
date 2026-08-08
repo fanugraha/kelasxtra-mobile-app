@@ -10,6 +10,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../core/network/dio_client.dart';
 import 'models/package_model.dart';
+import 'models/promo_model.dart';
 
 part 'katalog_api_service.g.dart';
 
@@ -33,9 +34,30 @@ class KatalogApiService {
     final response = await _dio.get(ApiEndpoints.packageDetail(packageId));
     return PackageModel.fromJson(response.data as Map<String, dynamic>);
   }
+
+  /// POST /promos/validate -- pre-check kode promo (tombol "Terapkan"),
+  /// TIDAK bikin transaksi. Salah satu dari [packageId]/[planId] wajib
+  /// diisi (sama seperti aturan checkout) -- dibiarkan backend yang
+  /// validasi kombinasinya, client tidak menduplikasi aturan itu.
+  Future<PromoValidationResult> validatePromo({
+    required String code,
+    int? packageId,
+    int? planId,
+  }) async {
+    final response = await _dio.post(
+      ApiEndpoints.promosValidate,
+      data: {
+        'code': code,
+        if (packageId != null) 'package_id': packageId,
+        if (planId != null) 'plan_id': planId,
+      },
+    );
+    return PromoValidationResult.fromJson(response.data as Map<String, dynamic>);
+  }
 }
 
 @Riverpod(keepAlive: true)
 KatalogApiService katalogApiService(KatalogApiServiceRef ref) {
   return KatalogApiService(ref.watch(dioProvider));
 }
+

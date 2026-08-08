@@ -43,3 +43,23 @@ class PromoModel with _$PromoModel {
       : 'Potongan Rp${discountValue.toStringAsFixed(0)}';
 }
 
+/// POST /promos/validate -- x-verified: source-code. Response 200 kalau
+/// kode valid untuk package_id/plan_id yang dikirim (belum bikin transaksi
+/// apapun, murni pre-check untuk tombol "Terapkan"). 404 (kode tidak
+/// ditemukan) & 422 (kedaluwarsa/kuota habis/new_user_only/dll) ditangani
+/// sebagai ApiException biasa di repository -- pesannya sudah dari
+/// backend, tidak perlu dipetakan ulang di client.
+@freezed
+class PromoValidationResult with _$PromoValidationResult {
+  const factory PromoValidationResult({
+    required PromoModel promo,
+    @JsonKey(name: 'base_price', fromJson: _decimalFromJson) required double basePrice,
+    @JsonKey(name: 'discount_amount', fromJson: _decimalFromJson) required double discountAmount,
+    @JsonKey(name: 'final_amount', fromJson: _decimalFromJson) required double finalAmount,
+  }) = _PromoValidationResult;
+
+  factory PromoValidationResult.fromJson(Map<String, dynamic> json) =>
+      _$PromoValidationResultFromJson(json);
+}
+
+

@@ -18,7 +18,9 @@ import '../../../../core/utils/formatters.dart';
 import '../../../enrollment/presentation/providers/enrollment_provider.dart';
 import '../../../transaksi/data/repositories/transaksi_repository.dart';
 import '../../../transaksi/presentation/screens/checkout_webview_screen.dart';
+import '../../data/models/promo_model.dart';
 import '../providers/katalog_provider.dart';
+import '../widgets/promo_code_field.dart';
 
 class KatalogScreen extends ConsumerStatefulWidget {
   const KatalogScreen({super.key, this.initialFilter});
@@ -174,11 +176,12 @@ class _PackageCard extends ConsumerStatefulWidget {
 class _PackageCardState extends ConsumerState<_PackageCard> {
   bool _isBuying = false;
 
-  Future<void> _handleBeli() async {
+  Future<void> _handleBeli({String? promoCode}) async {
     setState(() => _isBuying = true);
     try {
-      final transaction =
-          await ref.read(transaksiRepositoryProvider).checkoutPackage(widget.package.id);
+      final transaction = await ref
+          .read(transaksiRepositoryProvider)
+          .checkoutPackage(widget.package.id, promoCode: promoCode);
       final token = transaction.snapToken;
       if (token == null) throw Exception('Token pembayaran tidak tersedia. Coba lagi.');
 
@@ -210,9 +213,9 @@ class _PackageCardState extends ConsumerState<_PackageCard> {
         package: widget.package,
         isOwned: widget.isOwned,
         isBuying: _isBuying,
-        onBeli: () {
+        onBeli: (promoCode) {
           Navigator.of(sheetContext).pop();
-          _handleBeli();
+          _handleBeli(promoCode: promoCode);
         },
       ),
     );
@@ -362,7 +365,7 @@ class _OwnedBadge extends StatelessWidget {
   }
 }
 
-class _PackageDetailSheet extends StatelessWidget {
+class _PackageDetailSheet extends StatefulWidget {
   const _PackageDetailSheet({
     required this.package,
     required this.isOwned,
@@ -373,10 +376,24 @@ class _PackageDetailSheet extends StatelessWidget {
   final PackageModel package;
   final bool isOwned;
   final bool isBuying;
-  final VoidCallback onBeli;
+
+  /// Dipanggil dengan kode promo yang sedang diterapkan (null kalau tidak
+  /// ada) begitu tombol "Beli Sekarang" ditekan.
+  final ValueChanged<String?> onBeli;
+
+  @override
+  State<_PackageDetailSheet> createState() => _PackageDetailSheetState();
+}
+
+class _PackageDetailSheetState extends State<_PackageDetailSheet> {
+  PromoValidationResult? _promo;
 
   @override
   Widget build(BuildContext context) {
+    final package = widget.package;
+    final isOwned = widget.isOwned;
+    final isBuying = widget.isBuying;
+    final onBeli = widget.onBeli;
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
@@ -424,17 +441,21 @@ class _PackageDetailSheet extends StatelessWidget {
               Row(
                 children: [
                   Text(
-                    formatRupiah(package.effectivePrice),
+                    formatRupiah(_promo?.finalAmount ?? package.effectivePrice),
                     style: const TextStyle(
                       color: AppColors.brand600,
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  if (package.hasDiscount) ...[
+                  // Kalau promo diterapkan, yang dicoret adalah harga SEBELUM
+                  // promo (effectivePrice, yang sudah termasuk discount_price
+                  // paket kalau ada) -- bukan package.price mentah, supaya
+                  // tidak terlihat seperti diskon dobel yang salah hitung.
+                  if (_promo != null || package.hasDiscount) ...[
                     const SizedBox(width: 8),
                     Text(
-                      formatRupiah(package.price),
+                      formatRupiah(_promo != null ? package.effectivePrice : package.price),
                       style: const TextStyle(
                         color: AppColors.neutral400,
                         fontSize: 13,
@@ -510,13 +531,25 @@ class _PackageDetailSheet extends StatelessWidget {
                   ],
                 ),
               ],
+              if (!isOwned) ...[
+                const SizedBox(height: 20),
+                const Text(
+                  'Kode Promo',
+                  style: TextStyle(color: AppColors.neutral900, fontSize: 13.5, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                PromoCodeField(
+                  packageId: package.id,
+                  onResultChanged: (result) => setState(() => _promo = result),
+                ),
+              ],
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 child: isOwned
                     ? const _OwnedBadge()
                     : FilledButton(
-                        onPressed: isBuying ? null : onBeli,
+                        onPressed: isBuying ? null : () => onBeli(_promo?.promo.code),
                         style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
                         child: const Text('Beli Sekarang'),
                       ),
@@ -574,3 +607,4 @@ class _ErrorState extends StatelessWidget {
     );
   }
 }
+
