@@ -502,12 +502,32 @@ class _TugasSelanjutnyaSection extends StatelessWidget {
   }
 }
 
+/// Warna badge dibedakan per section (TWK/TIU/TKP) -- bukan cuma dekorasi,
+/// tapi bantu user memindai sekilas "tugas ini dari subtes mana" kalau
+/// campuran >1 section muncul dalam satu strip. Fallback abu-abu netral
+/// untuk section code di luar 3 ini (jaga-jaga kalau backend nambah kode
+/// baru suatu saat).
+(Color, Color) _sectionAccentColor(String sectionCode) {
+  switch (sectionCode) {
+    case 'TWK':
+      return (AppColors.info600, AppColors.info100);
+    case 'TIU':
+      return (AppColors.violet600, AppColors.violet100);
+    case 'TKP':
+      return (AppColors.teal600, AppColors.teal100);
+    default:
+      return (AppColors.neutral600, AppColors.neutral100);
+  }
+}
+
 class _TugasCard extends StatelessWidget {
   const _TugasCard({required this.recommendation});
   final TopRecommendation recommendation;
 
   @override
   Widget build(BuildContext context) {
+    final (accent, accentBg) = _sectionAccentColor(recommendation.sectionCode);
+
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () => context.push(
@@ -535,11 +555,11 @@ class _TugasCard extends StatelessWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: AppColors.gold100,
+                color: accentBg,
                 borderRadius: BorderRadius.circular(11),
               ),
               alignment: Alignment.center,
-              child: const Icon(Icons.bolt_outlined, color: AppColors.gold600, size: 19),
+              child: Icon(Icons.bolt_outlined, color: accent, size: 19),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -564,13 +584,13 @@ class _TugasCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                         decoration: BoxDecoration(
-                          color: AppColors.brand500.withOpacity(0.1),
+                          color: accentBg,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           recommendation.sectionCode,
-                          style: const TextStyle(
-                            color: AppColors.brand600,
+                          style: TextStyle(
+                            color: accent,
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
                           ),
@@ -791,6 +811,11 @@ class _PromoCarouselState extends State<_PromoCarousel> {
 }
 
 /// Grid akses cepat, 3 item, tiap item push langsung ke rute tujuannya.
+///
+/// Warna badge SENGAJA dibedakan per tile (bukan brand500 semua seperti
+/// draft pertama) -- brand-maroon dicadangkan untuk elemen core (Continue
+/// Card, tombol utama), grid ini pakai palet aksen (info/gold/success)
+/// supaya tidak terasa monokrom, sesuai arahan redesign.
 class _PracticeGrid extends ConsumerWidget {
   const _PracticeGrid();
 
@@ -800,18 +825,24 @@ class _PracticeGrid extends ConsumerWidget {
       title: 'Latihan Soal per Topik',
       subtitle: 'Susun roadmap topik',
       route: '/latihan-soal',
+      color: AppColors.info600,
+      bgColor: AppColors.info100,
     ),
     (
       icon: Icons.timer_outlined,
       title: 'Tryout',
       subtitle: 'Simulasi CAT penuh',
       route: '/tryout',
+      color: AppColors.gold600,
+      bgColor: AppColors.gold100,
     ),
     (
       icon: Icons.insights_outlined,
       title: 'Analisis Performa',
       subtitle: 'Lihat progres belajarmu',
       route: '/analisis-performa',
+      color: AppColors.success600,
+      bgColor: AppColors.success50,
     ),
   ];
 
@@ -830,7 +861,10 @@ class _PracticeGrid extends ConsumerWidget {
     );
   }
 
-  Widget _buildTile(BuildContext context, ({IconData icon, String title, String subtitle, String route}) item) {
+  Widget _buildTile(
+    BuildContext context,
+    ({IconData icon, String title, String subtitle, String route, Color color, Color bgColor}) item,
+  ) {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () => context.push(item.route),
@@ -854,10 +888,10 @@ class _PracticeGrid extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: AppColors.brand500.withOpacity(0.1),
+                color: item.bgColor,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(item.icon, color: AppColors.brand500, size: 20),
+              child: Icon(item.icon, color: item.color, size: 20),
             ),
             const SizedBox(height: 12),
             Text(

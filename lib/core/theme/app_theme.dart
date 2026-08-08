@@ -13,6 +13,18 @@ abstract class AppColors {
   static const gold500 = Color(0xFFC9A227);
   static const gold600 = Color(0xFFAB8720);
 
+  // Aksen non-brand -- KHUSUS dipakai untuk variasi warna di elemen
+  // dekoratif kecil (icon badge grid, tag topik, dsb), BUKAN untuk warna
+  // primer/CTA. Tujuannya supaya UI tidak monokrom brand-maroon di semua
+  // tempat, sesuai arahan redesign Agustus 2026 -- brand color dicadangkan
+  // untuk fitur core (Continue Card, tombol utama) saja.
+  static const info100 = Color(0xFFDBEAFE);
+  static const info600 = Color(0xFF2563EB);
+  static const violet100 = Color(0xFFEDE9FE);
+  static const violet600 = Color(0xFF7C3AED);
+  static const teal100 = Color(0xFFCCFBF1);
+  static const teal600 = Color(0xFF0D9488);
+
   static const success50 = Color(0xFFF0FDF4);
   static const success600 = Color(0xFF16A34A);
   static const success700 = Color(0xFF15803D);
