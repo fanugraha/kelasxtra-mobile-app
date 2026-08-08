@@ -68,6 +68,11 @@ class AkunScreen extends ConsumerWidget {
                   label: 'Privasi',
                   onTap: () => context.push('/privasi'),
                 ),
+                _MenuTile(
+                  icon: Icons.school_outlined,
+                  label: 'Kelas',
+                  onTap: () => context.push('/classes'),
+                ),
                 // Cuma tutor/admin -- endpoint-nya sendiri role-gated
                 // (403 kalau bukan), ini cuma menyembunyikan menu supaya
                 // siswa biasa tidak lihat tombol yang pasti gagal.
@@ -360,3 +365,4 @@ class _MenuTile extends StatelessWidget {
     );
   }
 }
+

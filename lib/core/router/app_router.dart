@@ -17,6 +17,8 @@ import '../../features/enrollment/presentation/screens/paket_saya_screen.dart';
 import '../../features/katalog/data/models/package_model.dart';
 import '../../features/katalog/presentation/screens/katalog_screen.dart';
 import '../../features/katalog/presentation/screens/tryout_screen.dart';
+import '../../features/kelas_materi/presentation/screens/kelas_detail_screen.dart';
+import '../../features/kelas_materi/presentation/screens/kelas_list_screen.dart';
 import '../../features/exam_engine/presentation/screens/exam_attempt_screen.dart';
 import '../../features/exam_engine/presentation/screens/exam_list_screen.dart';
 import '../../features/exam_engine/presentation/screens/exam_review_screen.dart';
@@ -113,6 +115,17 @@ GoRouter goRouter(GoRouterRef ref) {
         builder: (_, __) => const TutorEssayQueueScreen(),
       ),
       GoRoute(
+        path: '/classes',
+        builder: (_, __) => const KelasListScreen(),
+      ),
+      GoRoute(
+        path: '/classes/:id',
+        builder: (context, state) {
+          final id = int.parse(state.pathParameters['id']!);
+          return KelasDetailScreen(classId: id);
+        },
+      ),
+      GoRoute(
         path: '/analisis-performa',
         builder: (_, __) => const AnalisisPerformaScreen(),
       ),
@@ -204,4 +217,5 @@ GoRouter goRouter(GoRouterRef ref) {
     ],
   );
 }
+
 
