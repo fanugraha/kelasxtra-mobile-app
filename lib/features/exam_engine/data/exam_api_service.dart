@@ -11,6 +11,8 @@ import '../../../core/network/dio_client.dart';
 import 'models/exam_attempt_model.dart';
 import 'models/exam_review_model.dart';
 import 'models/exam_summary_model.dart';
+import 'models/my_exam_model.dart';
+import 'models/topic_mastery_model.dart';
 
 part 'exam_api_service.g.dart';
 
@@ -128,6 +130,43 @@ class ExamApiService {
   Future<ExamReviewModel> getReview(int attemptId) async {
     final response = await _dio.get(ApiEndpoints.examAttemptReview(attemptId));
     return ExamReviewModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// GET /me/topic-performance?program_id= -- ranking semua topik dalam 1
+  /// program, terlemah dulu (backend sudah sort, jangan sort ulang di
+  /// client). [programId] wajib -- lihat catatan validasi di backend
+  /// (ExamController::topicPerformance).
+  Future<TopicPerformanceResponse> getTopicPerformance(int programId) async {
+    final response = await _dio.get(
+      ApiEndpoints.topicPerformance,
+      queryParameters: {'program_id': programId},
+    );
+    return TopicPerformanceResponse.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// GET /me/topic-mastery-history?topic_id=&periods= -- riwayat mastery
+  /// mingguan 1 topik. [periods] maksimal 52 di server (default 12).
+  /// program_id TIDAK dikirim -- backend menurunkannya sendiri dari
+  /// topic.taxonomy.program_id.
+  Future<TopicMasteryHistoryModel> getTopicMasteryHistory({
+    required int topicId,
+    int periods = 12,
+  }) async {
+    final response = await _dio.get(
+      ApiEndpoints.topicMasteryHistory,
+      queryParameters: {'topic_id': topicId, 'periods': periods},
+    );
+    return TopicMasteryHistoryModel.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  /// GET /my-exams -- semua exam try-out yang boleh diakses siswa, LINTAS
+  /// SEMUA paket yang dipunya (bukan cuma 1 paket seperti getPackageExams).
+  /// Response array polos (bukan dibungkus {"data": ...}) -- lihat catatan
+  /// di [MyExamItem] soal cakupan field-nya.
+  Future<List<MyExamItem>> getMyExams() async {
+    final response = await _dio.get(ApiEndpoints.myExams);
+    final data = response.data as List<dynamic>;
+    return data.map((json) => MyExamItem.fromJson(json as Map<String, dynamic>)).toList();
   }
 }
 

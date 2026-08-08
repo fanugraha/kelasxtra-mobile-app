@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/formatters.dart';
 import '../providers/notifikasi_provider.dart';
 
 class NotifikasiScreen extends ConsumerWidget {
@@ -131,7 +132,7 @@ class _NotificationTile extends StatelessWidget {
                   ],
                   const SizedBox(height: 4),
                   Text(
-                    _relativeTime(createdAt),
+                    formatRelativeTime(createdAt),
                     style: const TextStyle(
                       fontSize: 11,
                       color: AppColors.neutral400,
@@ -145,18 +146,6 @@ class _NotificationTile extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Format waktu relatif sederhana ("5 menit lalu", "3 hari lalu") tanpa
-/// dependency tambahan (paket `intl` yang sudah ada di project ini tidak
-/// punya util relative-time bawaan).
-String _relativeTime(DateTime dt) {
-  final diff = DateTime.now().difference(dt);
-  if (diff.inMinutes < 1) return 'Baru saja';
-  if (diff.inMinutes < 60) return '${diff.inMinutes} menit lalu';
-  if (diff.inHours < 24) return '${diff.inHours} jam lalu';
-  if (diff.inDays < 7) return '${diff.inDays} hari lalu';
-  return '${dt.day}/${dt.month}/${dt.year}';
 }
 
 class _EmptyState extends StatelessWidget {

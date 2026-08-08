@@ -7,8 +7,10 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../data/leaderboard_repository.dart';
+import '../../data/models/leaderboard_event_model.dart';
 import '../../data/models/leaderboard_model.dart';
 
+export '../../data/models/leaderboard_event_model.dart';
 export '../../data/models/leaderboard_model.dart';
 
 part 'leaderboard_provider.g.dart';
@@ -47,3 +49,19 @@ Future<LeaderboardMyPosition?> leaderboardMyPosition(LeaderboardMyPositionRef re
   return ref.watch(leaderboardRepositoryProvider).getMyPosition(examId);
 }
 
+/// GET /leaderboard-events/me -- notifikasi rank berubah milik user
+/// sendiri (default backend: 10 menit terakhir). Fetch sekali per buka
+/// layar Peringkat + pull-to-refresh, TIDAK auto-polling di background --
+/// pola sama seperti provider lain di modul ini, supaya tidak menambah
+/// mekanisme baru (timer/websocket) yang belum ada presisinya di project.
+@riverpod
+Future<LeaderboardMyEventsResponse> leaderboardMyEvents(LeaderboardMyEventsRef ref) {
+  return ref.watch(leaderboardRepositoryProvider).getMyEvents();
+}
+
+/// GET /leaderboard-events/feed -- event rank berubah milik siswa lain
+/// (default backend: 2 menit terakhir).
+@riverpod
+Future<LeaderboardFeedResponse> leaderboardFeed(LeaderboardFeedRef ref) {
+  return ref.watch(leaderboardRepositoryProvider).getFeedEvents();
+}

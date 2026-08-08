@@ -23,6 +23,9 @@ import '../../features/exam_engine/presentation/screens/exam_attempt_screen.dart
 import '../../features/exam_engine/presentation/screens/exam_list_screen.dart';
 import '../../features/exam_engine/presentation/screens/exam_review_screen.dart';
 import '../../features/exam_engine/presentation/screens/exam_summary_screen.dart';
+import '../../features/exam_engine/presentation/screens/my_exams_screen.dart';
+import '../../features/exam_engine/presentation/screens/topic_performance_screen.dart';
+import '../../features/exam_engine/presentation/screens/topic_mastery_history_screen.dart';
 import '../../features/latihan_fokus/presentation/screens/latihan_kategori_screen.dart';
 import '../../features/latihan_fokus/presentation/screens/latihan_roadmap_screen.dart';
 import '../../features/latihan_fokus/presentation/screens/latihan_topik_screen.dart';
@@ -130,8 +133,27 @@ GoRouter goRouter(GoRouterRef ref) {
         builder: (_, __) => const AnalisisPerformaScreen(),
       ),
       GoRoute(
+        path: '/analisis-performa/topik',
+        builder: (context, state) {
+          final args = state.extra as TopicPerformanceArgs;
+          return TopicPerformanceScreen(programId: args.programId, programName: args.programName);
+        },
+      ),
+      GoRoute(
+        path: '/analisis-performa/topik/:topicId',
+        builder: (context, state) {
+          final topicId = int.parse(state.pathParameters['topicId']!);
+          final topicName = state.extra as String?;
+          return TopicMasteryHistoryScreen(topicId: topicId, topicName: topicName);
+        },
+      ),
+      GoRoute(
         path: '/paket-saya',
         builder: (_, __) => const PaketSayaScreen(),
+      ),
+      GoRoute(
+        path: '/semua-ujian',
+        builder: (_, __) => const MyExamsScreen(),
       ),
       GoRoute(
         path: '/transaksi',
@@ -217,5 +239,3 @@ GoRouter goRouter(GoRouterRef ref) {
     ],
   );
 }
-
-

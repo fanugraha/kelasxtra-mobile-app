@@ -49,6 +49,11 @@ class AkunScreen extends ConsumerWidget {
                   onTap: () => context.push('/paket-saya'),
                 ),
                 _MenuTile(
+                  icon: Icons.quiz_outlined,
+                  label: 'Semua Ujian',
+                  onTap: () => context.push('/semua-ujian'),
+                ),
+                _MenuTile(
                   icon: Icons.receipt_long_outlined,
                   label: 'Riwayat Transaksi',
                   onTap: () => context.push('/transaksi'),
@@ -365,4 +370,3 @@ class _MenuTile extends StatelessWidget {
     );
   }
 }
-

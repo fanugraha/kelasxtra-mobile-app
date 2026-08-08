@@ -4,6 +4,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/network/api_exception.dart';
 import 'leaderboard_api_service.dart';
+import 'models/leaderboard_event_model.dart';
 import 'models/leaderboard_model.dart';
 
 part 'leaderboard_repository.g.dart';
@@ -42,10 +43,30 @@ class LeaderboardRepository {
       throw apiException;
     }
   }
+
+  /// GET /leaderboard-events/me -- notifikasi rank berubah milik user
+  /// sendiri. Tidak ada kondisi 404 khusus di endpoint ini (selalu 200,
+  /// `events` bisa kosong), jadi tidak perlu penanganan beda seperti
+  /// [getMyPosition].
+  Future<LeaderboardMyEventsResponse> getMyEvents({DateTime? since}) async {
+    try {
+      return await _api.getMyEvents(since: since);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  /// GET /leaderboard-events/feed -- event rank berubah milik siswa lain.
+  Future<LeaderboardFeedResponse> getFeedEvents({DateTime? since}) async {
+    try {
+      return await _api.getFeedEvents(since: since);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
 }
 
 @riverpod
 LeaderboardRepository leaderboardRepository(LeaderboardRepositoryRef ref) {
   return LeaderboardRepository(ref.watch(leaderboardApiServiceProvider));
 }
-

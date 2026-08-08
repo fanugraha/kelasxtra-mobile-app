@@ -7,6 +7,8 @@ import 'exam_api_service.dart';
 import 'models/exam_attempt_model.dart';
 import 'models/exam_review_model.dart';
 import 'models/exam_summary_model.dart';
+import 'models/my_exam_model.dart';
+import 'models/topic_mastery_model.dart';
 
 part 'exam_repository.g.dart';
 
@@ -105,6 +107,33 @@ class ExamRepository {
   Future<ExamReviewModel> getReview(int attemptId) async {
     try {
       return await _api.getReview(attemptId);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  Future<TopicPerformanceResponse> getTopicPerformance(int programId) async {
+    try {
+      return await _api.getTopicPerformance(programId);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  Future<TopicMasteryHistoryModel> getTopicMasteryHistory({
+    required int topicId,
+    int periods = 12,
+  }) async {
+    try {
+      return await _api.getTopicMasteryHistory(topicId: topicId, periods: periods);
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  Future<List<MyExamItem>> getMyExams() async {
+    try {
+      return await _api.getMyExams();
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
     }

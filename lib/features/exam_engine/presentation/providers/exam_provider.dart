@@ -9,9 +9,13 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../data/exam_repository.dart';
 import '../../data/models/exam_review_model.dart';
 import '../../data/models/exam_summary_model.dart';
+import '../../data/models/my_exam_model.dart';
+import '../../data/models/topic_mastery_model.dart';
 
 export '../../data/models/exam_review_model.dart';
 export '../../data/models/exam_summary_model.dart';
+export '../../data/models/my_exam_model.dart';
+export '../../data/models/topic_mastery_model.dart';
 
 part 'exam_provider.g.dart';
 
@@ -33,4 +37,27 @@ Future<List<ExamListItemModel>> packageExams(PackageExamsRef ref, int packageId)
 @riverpod
 Future<ExamReviewModel> examReview(ExamReviewRef ref, int attemptId) {
   return ref.watch(examRepositoryProvider).getReview(attemptId);
+}
+
+/// GET /me/topic-performance?program_id= -- ranking topik terlemah-dulu
+/// dalam 1 program. Dipakai layar "Semua Topik" (drill-down dari
+/// Analisis Performa).
+@riverpod
+Future<TopicPerformanceResponse> topicPerformance(TopicPerformanceRef ref, int programId) {
+  return ref.watch(examRepositoryProvider).getTopicPerformance(programId);
+}
+
+/// GET /me/topic-mastery-history?topic_id= -- riwayat mingguan 1 topik
+/// (chart tren). access.full=false -> periods dikembalikan kosong oleh
+/// backend, ditangani di layar (lihat TopicMasteryHistoryScreen).
+@riverpod
+Future<TopicMasteryHistoryModel> topicMasteryHistory(TopicMasteryHistoryRef ref, int topicId) {
+  return ref.watch(examRepositoryProvider).getTopicMasteryHistory(topicId: topicId);
+}
+
+/// GET /my-exams -- semua exam try-out yang boleh diakses siswa, lintas
+/// semua paket yang dipunya. Dipakai MyExamsScreen ("Semua Ujian").
+@riverpod
+Future<List<MyExamItem>> myExams(MyExamsRef ref) {
+  return ref.watch(examRepositoryProvider).getMyExams();
 }

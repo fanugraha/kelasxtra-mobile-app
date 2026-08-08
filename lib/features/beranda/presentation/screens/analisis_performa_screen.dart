@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../exam_engine/presentation/screens/topic_performance_screen.dart';
 import '../providers/beranda_provider.dart';
 
 class AnalisisPerformaScreen extends ConsumerWidget {
@@ -102,6 +103,17 @@ class _PerformanceBody extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
       children: [
         _StreakCard(streak: performance.streak),
+        // Link ke "Semua Topik" (GET /me/topic-performance) -- ranking
+        // topik LINTAS SEMUA EXAM dalam program ini, beda dari
+        // sections di bawah yang dikelompokkan per section/exam.
+        // programId wajib untuk query itu, jadi disembunyikan kalau
+        // backend tidak mengirim `program` (mis. belum ada attempt sama
+        // sekali -- state itu ditangani _NoAttemptsState, bukan di sini,
+        // tapi dijaga juga untuk kondisi lain yang tidak terduga).
+        if (performance.program != null) ...[
+          const SizedBox(height: 14),
+          _AllTopicsLink(programId: performance.program!.id, programName: performance.program!.name),
+        ],
         if (showInsufficientBanner) ...[
           const SizedBox(height: 14),
           const _InfoBanner(
@@ -196,6 +208,45 @@ class _StreakCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AllTopicsLink extends StatelessWidget {
+  const _AllTopicsLink({required this.programId, required this.programName});
+  final int programId;
+  final String programName;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => context.push(
+        '/analisis-performa/topik',
+        extra: TopicPerformanceArgs(programId: programId, programName: programName),
+      ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.neutral200),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.list_alt_outlined, size: 18, color: AppColors.brand600),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Lihat Semua Topik',
+                style: TextStyle(color: AppColors.neutral900, fontSize: 13.5, fontWeight: FontWeight.w700),
+              ),
+            ),
+            const Icon(Icons.chevron_right, color: AppColors.neutral400, size: 18),
+          ],
+        ),
       ),
     );
   }

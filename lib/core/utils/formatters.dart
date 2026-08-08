@@ -50,6 +50,20 @@ String formatTanggalSingkat(String? dateString) {
   return '${local.day} ${_bulanSingkat[local.month - 1]} ${local.year}';
 }
 
+/// Format waktu relatif sederhana ("5 menit lalu", "3 hari lalu") tanpa
+/// dependency tambahan (paket `intl` yang sudah ada di project ini tidak
+/// punya util relative-time bawaan). Dipindah dari notifikasi_screen.dart
+/// (privat di sana) supaya bisa dipakai modul lain (leaderboard events)
+/// tanpa duplikasi.
+String formatRelativeTime(DateTime dt) {
+  final diff = DateTime.now().difference(dt);
+  if (diff.inMinutes < 1) return 'Baru saja';
+  if (diff.inMinutes < 60) return '${diff.inMinutes} menit lalu';
+  if (diff.inHours < 24) return '${diff.inHours} jam lalu';
+  if (diff.inDays < 7) return '${diff.inDays} hari lalu';
+  return '${dt.day}/${dt.month}/${dt.year}';
+}
+
 /// 30 -> "30 hari", 365 -> "1 tahun", 90 -> "3 bulan" (pembulatan kasar,
 /// cukup buat label kartu plan/paket).
 String formatDurasi(int days) {

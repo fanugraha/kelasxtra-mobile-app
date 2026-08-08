@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/leaderboard_provider.dart';
 
@@ -63,10 +64,13 @@ class _LeaderboardBody extends ConsumerWidget {
       onRefresh: () async {
         ref.invalidate(leaderboardEntriesProvider(selectedId));
         ref.invalidate(leaderboardMyPositionProvider(selectedId));
+        ref.invalidate(leaderboardMyEventsProvider);
+        ref.invalidate(leaderboardFeedProvider);
       },
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         children: [
+          const _LeaderboardEventsSection(),
           _ExamDropdown(
             rankedExams: rankedExams,
             selectedId: selectedId,
@@ -420,6 +424,170 @@ class _EmptyEntriesState extends StatelessWidget {
   }
 }
 
+/// "Aktivitas Peringkat" -- gabungan notifikasi rank pribadi
+/// ([leaderboardMyEventsProvider], default window 10 menit terakhir di
+/// backend) dan feed publik rank siswa lain ([leaderboardFeedProvider],
+/// window 2 menit). TIDAK terikat exam yang dipilih di dropdown --
+/// event lintas semua exam yang punya leaderboard aktif.
+///
+/// Section ini sengaja TIDAK ditampilkan sama sekali kalau kedua-duanya
+/// kosong (bukan tampilkan "empty state") -- backend hanya catat event
+/// saat rank menembus milestone/naik signifikan, jadi kosong adalah
+/// kondisi NORMAL sehari-hari, bukan sesuatu yang perlu dijelaskan ke
+/// user tiap buka layar ini.
+class _LeaderboardEventsSection extends ConsumerWidget {
+  const _LeaderboardEventsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final myEventsAsync = ref.watch(leaderboardMyEventsProvider);
+    final feedAsync = ref.watch(leaderboardFeedProvider);
+
+    final myEvents = myEventsAsync.valueOrNull?.events ?? const [];
+    final feedEvents = feedAsync.valueOrNull?.events ?? const [];
+
+    if (myEvents.isEmpty && feedEvents.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final event in myEvents) ...[
+            _MyEventCard(event: event),
+            const SizedBox(height: 8),
+          ],
+          if (feedEvents.isNotEmpty) _FeedEventList(events: feedEvents),
+        ],
+      ),
+    );
+  }
+}
+
+/// Kartu notifikasi rank pribadi berubah -- pakai warna gold kalau
+/// menembus milestone (Top 50/10/3), brand kalau cuma naik signifikan
+/// biasa, supaya milestone terasa lebih "istimewa".
+class _MyEventCard extends StatelessWidget {
+  const _MyEventCard({required this.event});
+  final LeaderboardMyEvent event;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = event.isMilestone ? AppColors.gold600 : AppColors.brand600;
+    final bg = event.isMilestone ? AppColors.gold100 : AppColors.brand50;
+    final text = event.oldRank == null
+        ? 'Kamu masuk ranking di posisi #${event.newRank} untuk "${event.examTitle}"'
+        : 'Rank kamu naik dari #${event.oldRank} ke #${event.newRank} di "${event.examTitle}"';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accent.withOpacity(0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            event.isMilestone ? Icons.emoji_events_outlined : Icons.trending_up,
+            color: accent,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  text,
+                  style: TextStyle(color: accent, fontSize: 12.5, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  formatRelativeTime(event.createdAt.toLocal()),
+                  style: const TextStyle(color: AppColors.neutral500, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Feed publik anonim rank siswa lain naik -- daftar ringkas, bukan kartu
+/// besar per item, supaya tidak mendominasi layar dibanding leaderboard
+/// utamanya sendiri.
+class _FeedEventList extends StatelessWidget {
+  const _FeedEventList({required this.events});
+  final List<LeaderboardFeedEvent> events;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.neutral200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final event in events) _FeedEventRow(event: event),
+        ],
+      ),
+    );
+  }
+}
+
+class _FeedEventRow extends StatelessWidget {
+  const _FeedEventRow({required this.event});
+  final LeaderboardFeedEvent event;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(
+            event.isMilestone ? Icons.emoji_events_outlined : Icons.trending_up,
+            color: event.isMilestone ? AppColors.gold600 : AppColors.neutral400,
+            size: 16,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: const TextStyle(color: AppColors.neutral700, fontSize: 12.5),
+                children: [
+                  TextSpan(
+                    text: event.displayName,
+                    style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.neutral900),
+                  ),
+                  TextSpan(text: ' naik ke rank #${event.newRank}'),
+                ],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            formatRelativeTime(event.createdAt.toLocal()),
+            style: const TextStyle(color: AppColors.neutral400, fontSize: 10.5),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ErrorState extends StatelessWidget {
   const _ErrorState({required this.message, required this.onRetry});
   final String message;
@@ -448,4 +616,3 @@ class _ErrorState extends StatelessWidget {
     );
   }
 }
-
