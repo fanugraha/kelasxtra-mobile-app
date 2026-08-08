@@ -37,7 +37,22 @@ class ExamSummaryScreen extends ConsumerWidget {
               _ExamInfoCard(summary: summary),
               if (summary.hasBeenAttempted) ...[
                 const SizedBox(height: 20),
-                const _SectionTitle(title: 'Percobaan Pertama'),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const _SectionTitle(title: 'Percobaan Pertama'),
+                    // Selalu tampil kalau sudah pernah dikerjakan, bukan cuma
+                    // saat attemptsCount > 2 -- link ini satu-satunya jalan
+                    // lihat percobaan DI ANTARA pertama & terakhir (mis.
+                    // percobaan ke-2 dari 3 kali), yang tidak kelihatan di
+                    // kartu firstAttempt/latestAttempt di bawah ini.
+                    TextButton(
+                      onPressed: () => context.push('/exams/$examId/attempts'),
+                      style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                      child: const Text('Lihat Semua Riwayat', style: TextStyle(fontSize: 12.5)),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 10),
                 _AttemptCard(attempt: summary.firstAttempt!),
                 if (summary.latestAttempt != null &&

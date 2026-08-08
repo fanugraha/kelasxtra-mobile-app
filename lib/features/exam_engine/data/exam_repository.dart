@@ -4,6 +4,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/network/api_exception.dart';
 import 'exam_api_service.dart';
+import 'models/exam_attempt_history_model.dart';
 import 'models/exam_attempt_model.dart';
 import 'models/exam_review_model.dart';
 import 'models/exam_summary_model.dart';
@@ -134,6 +135,14 @@ class ExamRepository {
   Future<List<MyExamItem>> getMyExams() async {
     try {
       return await _api.getMyExams();
+    } on DioException catch (e) {
+      throw ApiException.fromDioException(e);
+    }
+  }
+
+  Future<ExamAttemptHistoryResponse> getExamAttempts(int examId, {int? bankId}) async {
+    try {
+      return await _api.getExamAttempts(examId, bankId: bankId);
     } on DioException catch (e) {
       throw ApiException.fromDioException(e);
     }

@@ -2,6 +2,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../../katalog/data/models/package_model.dart';
+import '../../../subscription/data/models/subscription_plan_model.dart';
 
 part 'beranda_models.freezed.dart';
 part 'beranda_models.g.dart';
@@ -437,6 +438,13 @@ class BerandaRawData with _$BerandaRawData {
     SubscriptionStatus? subscription,
     required List<PromoBanner> promoBanners,
     required int unreadNotificationCount,
+    // Cuma diisi kalau user BELUM punya subscription aktif -- lihat
+    // BerandaRepository.getBerandaData(). Reuse SubscriptionPlanModel dari
+    // modul subscription (GET /subscription-plans sudah ada providernya di
+    // sana, bukan panggilan baru dari sisi API), dipakai buat kartu
+    // "Upgrade ke Langganan" di Beranda. List kosong kalau subscription
+    // sudah aktif (tidak perlu upsell) ATAU fetch plan gagal.
+    @Default(<SubscriptionPlanModel>[]) List<SubscriptionPlanModel> subscriptionPlans,
   }) = _BerandaRawData;
 }
 
@@ -461,5 +469,8 @@ class BerandaData with _$BerandaData {
     // jadi getter turunan dari sini beresiko regresi di luar scope
     // pekerjaan ini.
     required PerformanceSummary performance,
+    // Lihat catatan di BerandaRawData.subscriptionPlans -- kosong kalau
+    // hasActiveSubscription true (tidak perlu tampilkan upsell).
+    @Default(<SubscriptionPlanModel>[]) List<SubscriptionPlanModel> subscriptionPlans,
   }) = _BerandaData;
 }

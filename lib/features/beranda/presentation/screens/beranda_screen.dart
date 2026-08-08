@@ -5,8 +5,23 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/providers/navigation_provider.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../subscription/data/models/subscription_plan_model.dart';
 import '../providers/beranda_provider.dart';
 
+/// Redesign Agustus 2026 -- struktur baru disepakati bersama Fajar supaya:
+///   1. User gampang pilih jalur "langganan" (produk utama) vs "beli exam
+///      terpisah" (produk kedua) -- lihat _UpgradeLanggananCard di bawah.
+///   2. User gampang lihat progres -- _ProgressSection (ringkasan skor +
+///      breakdown per section), bukan cuma 2 angka datar seperti sebelumnya.
+///   3. User gampang lihat "tugas" mereka -- _TugasSelanjutnyaSection,
+///      dari performance.topRecommendations (topik lemah yang perlu
+///      dilatih), yang SEBELUMNYA di-fetch tapi tidak pernah ditampilkan
+///      di Beranda sama sekali.
+/// TIDAK ADA endpoint baru -- semua section baru pakai data yang sudah
+/// di-fetch BerandaRepository, kecuali subscriptionPlans (GET
+/// /subscription-plans) yang di-reuse dari SubscriptionRepository yang
+/// sudah ada (dipakai LanggananScreen), bukan panggilan API baru dari sisi
+/// backend, dan cuma dipanggil kalau user belum berlangganan.
 class BerandaScreen extends ConsumerWidget {
   const BerandaScreen({super.key});
 
@@ -15,7 +30,7 @@ class BerandaScreen extends ConsumerWidget {
     final berandaAsync = ref.watch(berandaNotifierProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.neutral50,
       body: SafeArea(
         child: berandaAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -34,31 +49,124 @@ class BerandaScreen extends ConsumerWidget {
                   subscriptionPackageName: data.subscriptionPackageName,
                   unreadNotificationCount: data.unreadNotificationCount,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 _ContinueCard(exam: data.continueExam),
-                if (data.promoBanners.isNotEmpty) ...[
-                  const SizedBox(height: 20),
-                  _PromoCarousel(banners: data.promoBanners),
+
+                // ---------- Tugas Selanjutnya ----------
+                if (data.performance.topRecommendations.isNotEmpty) ...[
+                  const SizedBox(height: 28),
+                  _SectionHeader(
+                    title: 'Tugas Selanjutnya',
+                    actionLabel: data.performance.topRecommendations.length > 3 ? 'Lihat semua' : null,
+                    onAction: () => context.push('/analisis-performa'),
+                  ),
+                  const SizedBox(height: 12),
+                  _TugasSelanjutnyaSection(
+                    recommendations: data.performance.topRecommendations.take(3).toList(),
+                  ),
                 ],
+
+                // ---------- Progres Kamu ----------
                 const SizedBox(height: 28),
-                const _SectionTitle(title: 'Latihan & Try Out'),
+                _SectionHeader(
+                  title: 'Progres Kamu',
+                  actionLabel: 'Detail',
+                  onAction: () => context.push('/analisis-performa'),
+                ),
+                const SizedBox(height: 12),
+                if (data.performance.sections.isNotEmpty) ...[
+                  _StatsRow(averageScore: data.averageScore, rank: data.rank),
+                  const SizedBox(height: 12),
+                  _ProgressSectionsRow(sections: data.performance.sections),
+                ] else if (data.performance.cta != null)
+                  _StartPracticeCta(cta: data.performance.cta!)
+                else
+                  const _StatsRow(averageScore: 0, rank: 0),
+
+                // ---------- Upgrade Langganan (kondisional) ----------
+                if (data.subscriptionPlans.isNotEmpty) ...[
+                  const SizedBox(height: 28),
+                  _UpgradeLanggananCard(plans: data.subscriptionPlans),
+                ],
+
+                // ---------- Latihan & Try Out ----------
+                const SizedBox(height: 28),
+                const _SectionHeader(title: 'Latihan & Try Out'),
                 const SizedBox(height: 12),
                 const _PracticeGrid(),
+
+                // ---------- Rekomendasi Paket (jalur beli-terpisah) ----------
                 if (data.recommendedPackages.isNotEmpty) ...[
                   const SizedBox(height: 28),
-                  const _SectionTitle(title: 'Rekomendasi Paket'),
+                  _SectionHeader(
+                    title: data.hasActiveSubscription ? 'Paket Tambahan' : 'Mulai dari Paket Ini',
+                  ),
                   const SizedBox(height: 12),
                   _RecommendedPackages(packages: data.recommendedPackages),
                 ],
-                const SizedBox(height: 28),
-                _StatsRow(averageScore: data.averageScore, rank: data.rank),
-                const SizedBox(height: 20),
+
+                if (data.promoBanners.isNotEmpty) ...[
+                  const SizedBox(height: 28),
+                  _PromoCarousel(banners: data.promoBanners),
+                ],
+
+                const SizedBox(height: 24),
                 _LeaderboardPreview(rank: data.rank),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Header section generik dipakai semua section baru -- judul + aksi kanan
+/// opsional (mis. "Lihat semua" / "Detail"). Dulu tiap section nulis Text
+/// judul sendiri-sendiri (_SectionTitle) tanpa slot aksi sama sekali.
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, this.actionLabel, this.onAction});
+
+  final String title;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: AppColors.neutral900,
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        if (actionLabel != null)
+          InkWell(
+            onTap: onAction,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    actionLabel!,
+                    style: const TextStyle(
+                      color: AppColors.brand600,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right, color: AppColors.brand600, size: 16),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -83,11 +191,22 @@ class _HeaderRow extends ConsumerWidget {
     return Row(
       children: [
         Container(
-          width: 44,
-          height: 44,
+          width: 46,
+          height: 46,
           decoration: BoxDecoration(
-            color: AppColors.brand500,
-            borderRadius: BorderRadius.circular(14),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppColors.brand500, AppColors.brand700],
+            ),
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.brand500.withOpacity(0.28),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           alignment: Alignment.center,
           child: Text(
@@ -113,18 +232,25 @@ class _HeaderRow extends ConsumerWidget {
                   if (hasActiveSubscription) ...[
                     const SizedBox(width: 6),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                       decoration: BoxDecoration(
                         color: AppColors.gold100,
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: Text(
-                        subscriptionPackageName ?? 'Premium',
-                        style: const TextStyle(
-                          color: AppColors.gold600,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                        ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.workspace_premium, color: AppColors.gold600, size: 10),
+                          const SizedBox(width: 3),
+                          Text(
+                            subscriptionPackageName ?? 'Premium',
+                            style: const TextStyle(
+                              color: AppColors.gold600,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -189,6 +315,50 @@ class _HeaderRow extends ConsumerWidget {
   }
 }
 
+/// Kartu dekoratif -- 2 lingkaran semi-transparan di pojok kanan-bawah,
+/// bukan flat solid color polos. Tidak pakai image asset (butuh bundling
+/// baru); cukup shape sederhana buat kesan "berlapis".
+class _DecorativeCircles extends StatelessWidget {
+  const _DecorativeCircles();
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -30,
+              top: -30,
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.06),
+                ),
+              ),
+            ),
+            Positioned(
+              right: 10,
+              bottom: -50,
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.07),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ContinueCard extends ConsumerWidget {
   const _ContinueCard({required this.exam});
   final ContinueExamData? exam;
@@ -199,91 +369,109 @@ class _ContinueCard extends ConsumerWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.brand500,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.brand500, AppColors.brand700],
+        ),
         borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.brand500.withOpacity(0.30),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(10),
+          const _DecorativeCircles(),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        hasExam ? Icons.play_circle_outline : Icons.bolt_outlined,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      hasExam ? 'Lanjutkan Belajar' : 'Mulai Belajar',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
-                child: Icon(
-                  hasExam ? Icons.play_circle_outline : Icons.bolt_outlined,
-                  color: Colors.white,
-                  size: 20,
+                const SizedBox(height: 14),
+                Text(
+                  hasExam ? exam!.title : 'Belum ada latihan hari ini',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                hasExam ? 'Lanjutkan Belajar' : 'Mulai Belajar',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                if (hasExam) ...[
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: exam!.progress,
+                      minHeight: 6,
+                      backgroundColor: Colors.white.withOpacity(0.25),
+                      valueColor: const AlwaysStoppedAnimation(Colors.white),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${(exam!.progress * 100).round()}% selesai',
+                    style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    // hasExam -> examId dari ContinueExamData sudah cukup untuk
+                    // masuk ke screen ringkasan exam (Fase 2), yang lalu push ke
+                    // exam-taking UI (Fase 3) begitu attempt dibuat/di-resume.
+                    // !hasExam -> belum ada exam untuk dilanjutkan sama sekali,
+                    // tetap arahkan ke tab Latihan seperti sebelumnya.
+                    onPressed: () {
+                      if (hasExam) {
+                        context.push('/exams/${exam!.examId}/summary');
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Fitur ini segera hadir. Sementara, cek Latihan.')),
+                        );
+                        ref.read(selectedTabIndexProvider.notifier).state = 1;
+                      }
+                    },
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.brand700,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: Text(hasExam ? 'Lanjutkan' : 'Cari Latihan'),
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            hasExam ? exam!.title : 'Belum ada latihan hari ini',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          if (hasExam) ...[
-            const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: exam!.progress,
-                minHeight: 6,
-                backgroundColor: Colors.white.withOpacity(0.25),
-                valueColor: const AlwaysStoppedAnimation(Colors.white),
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '${(exam!.progress * 100).round()}% selesai',
-              style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12),
-            ),
-          ],
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              // hasExam -> examId dari ContinueExamData sudah cukup untuk
-              // masuk ke screen ringkasan exam (Fase 2), yang lalu push ke
-              // exam-taking UI (Fase 3) begitu attempt dibuat/di-resume.
-              // !hasExam -> belum ada exam untuk dilanjutkan sama sekali,
-              // tetap arahkan ke tab Latihan seperti sebelumnya.
-              onPressed: () {
-                if (hasExam) {
-                  context.push('/exams/${exam!.examId}/summary');
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Fitur ini segera hadir. Sementara, cek Latihan.')),
-                  );
-                  ref.read(selectedTabIndexProvider.notifier).state = 1;
-                }
-              },
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: AppColors.brand700,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-              child: Text(hasExam ? 'Lanjutkan' : 'Cari Latihan'),
+              ],
             ),
           ),
         ],
@@ -292,10 +480,183 @@ class _ContinueCard extends ConsumerWidget {
   }
 }
 
-/// Carousel promo dari /promos/active. Ganti posisi banner upsell lama --
-/// satu CTA utama saja sesuai prinsip yang disepakati (bukan tumpuk-tumpuk
-/// promo + banner subscription sekaligus). Status subscription sekarang
-/// cukup lewat badge kecil di header (_HeaderRow), bukan banner terpisah.
+/// Section "Tugas Selanjutnya" -- dari performance.topRecommendations.
+/// Navigasi pakai pola PERSIS yang sama dengan _RecommendationCard di
+/// AnalisisPerformaScreen (recommendation.topicId ke roadmap topik, BUKAN
+/// recommendation.practiceLink -- lihat catatan di sana soal practice_link
+/// belum match route app ini).
+class _TugasSelanjutnyaSection extends StatelessWidget {
+  const _TugasSelanjutnyaSection({required this.recommendations});
+  final List<TopRecommendation> recommendations;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (var i = 0; i < recommendations.length; i++) ...[
+          if (i != 0) const SizedBox(height: 10),
+          _TugasCard(recommendation: recommendations[i]),
+        ],
+      ],
+    );
+  }
+}
+
+class _TugasCard extends StatelessWidget {
+  const _TugasCard({required this.recommendation});
+  final TopRecommendation recommendation;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => context.push(
+        '/latihan-soal/topik/${recommendation.topicId}',
+        extra: recommendation.topicName,
+      ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.neutral900.withOpacity(0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.gold100,
+                borderRadius: BorderRadius.circular(11),
+              ),
+              alignment: Alignment.center,
+              child: const Icon(Icons.bolt_outlined, color: AppColors.gold600, size: 19),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          recommendation.topicName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: AppColors.neutral900,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: AppColors.brand500.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          recommendation.sectionCode,
+                          style: const TextStyle(
+                            color: AppColors.brand600,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    recommendation.message,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: AppColors.neutral500, fontSize: 12, height: 1.35),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${recommendation.suggestedQuestionCount} soal disarankan',
+                    style: const TextStyle(
+                      color: AppColors.gold600,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right, color: AppColors.neutral400, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// CTA state=no_attempts -- performance.cta HANYA ada kalau backend
+/// mengirim state itu (lihat catatan di model PerformanceSummary). Belum
+/// pernah ditampilkan di Beranda sebelumnya, cuma dipakai di
+/// AnalisisPerformaScreen (_NoAttemptsState) -- ditambahkan di sini juga
+/// supaya user baru langsung lihat ajakan mulai tanpa harus masuk ke tab
+/// Progres dulu.
+class _StartPracticeCta extends StatelessWidget {
+  const _StartPracticeCta({required this.cta});
+  final PerformanceCta cta;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.neutral200),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.flag_outlined, color: AppColors.brand500, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              cta.message,
+              style: const TextStyle(color: AppColors.neutral700, fontSize: 12.5, height: 1.4),
+            ),
+          ),
+          const SizedBox(width: 8),
+          TextButton(
+            // action_link mentah dari backend belum tentu match route app
+            // ini (pola sama seperti practice_link di TopRecommendation) --
+            // arahkan ke tab Latihan, jalur paling aman buat mulai try-out
+            // pertama.
+            onPressed: () => context.push('/tryout'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.brand600,
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(0, 0),
+            ),
+            child: const Text('Mulai', style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Carousel promo dari /promos/active.
 class _PromoCarousel extends StatefulWidget {
   const _PromoCarousel({required this.banners});
   final List<PromoBanner> banners;
@@ -429,38 +790,7 @@ class _PromoCarouselState extends State<_PromoCarousel> {
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title});
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      title,
-      style: const TextStyle(
-        color: AppColors.neutral900,
-        fontSize: 16,
-        fontWeight: FontWeight.w700,
-      ),
-    );
-  }
-}
-
-/// Grid akses cepat, 3 item (bukan 4 -- lihat catatan di bawah), tiap item
-/// push langsung ke rute tujuannya (bukan cuma ganti tab bottom-nav lalu
-/// user tap lagi).
-///
-/// Dulu ada tile ke-4 "Latihan Fokus" ("Perkuat kelemahanmu") terpisah dari
-/// "Latihan Soal per Topik" -- dihapus karena keduanya SATU fitur yang sama
-/// (endpoint /latihan-soal/categories -> topics -> roadmap, ditag "Latihan
-/// Fokus" di kelasxtra-openapi.yaml). Tile "Latihan Fokus" cuma mendarat di
-/// kategori generik yang sama, jadi subtitle "Perkuat kelemahanmu" menjanjikan
-/// sesuatu yang tidak benar-benar ada (tidak ada personalisasi kelemahan di
-/// screen itu) -- membingungkan, bukan cuma duplikat kosmetik.
-///
-/// "Analisis Performa" push ke AnalisisPerformaScreen (konsumsi
-/// PerformanceSummary penuh dari BerandaData.performance -- reuse cache
-/// Beranda, tidak ada request tambahan).
+/// Grid akses cepat, 3 item, tiap item push langsung ke rute tujuannya.
 class _PracticeGrid extends ConsumerWidget {
   const _PracticeGrid();
 
@@ -509,14 +839,27 @@ class _PracticeGrid extends ConsumerWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.neutral200),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.neutral900.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(item.icon, color: AppColors.brand500, size: 22),
-            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.brand500.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(item.icon, color: AppColors.brand500, size: 20),
+            ),
+            const SizedBox(height: 12),
             Text(
               item.title,
               maxLines: 2,
@@ -541,9 +884,7 @@ class _PracticeGrid extends ConsumerWidget {
   }
 }
 
-/// Bentuk pita diskon bergaya e-commerce (flag/notch di sisi kanan) --
-/// dipakai di pojok kiri-atas gambar card paket, mirip badge "-50%" di
-/// Shopee/Tokopedia.
+/// Bentuk pita diskon bergaya e-commerce.
 class _DiscountRibbon extends StatelessWidget {
   const _DiscountRibbon({required this.label});
   final String label;
@@ -571,7 +912,7 @@ class _DiscountRibbon extends StatelessWidget {
 class _RibbonClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
-    final notch = 7.0;
+    const notch = 7.0;
     return Path()
       ..lineTo(0, size.height)
       ..lineTo(size.width - notch, size.height)
@@ -584,8 +925,6 @@ class _RibbonClipper extends CustomClipper<Path> {
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
 
-/// Chip kecil hijau bergaya "Gratis Ongkir"-nya Shopee -- dipakai buat
-/// menonjolkan 1 fitur unggulan paket di card.
 class _FeatureChip extends StatelessWidget {
   const _FeatureChip({required this.label});
   final String label;
@@ -613,11 +952,6 @@ class _FeatureChip extends StatelessWidget {
   }
 }
 
-/// Section baru -- recommendedPackages sudah lama di-fetch tapi cuma
-/// dipakai buat hitung discountLabel di banner lama. Sekarang ditampilkan
-/// sebagai card gaya marketplace (Shopee-like): gambar persegi dengan
-/// pita diskon, harga besar + harga asli dicoret + chip persen, dan chip
-/// fitur unggulan.
 class _RecommendedPackages extends StatelessWidget {
   const _RecommendedPackages({required this.packages});
   final List<RecommendedPackage> packages;
@@ -639,8 +973,14 @@ class _RecommendedPackages extends StatelessWidget {
             width: 168,
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.neutral200),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.neutral900.withOpacity(0.06),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             clipBehavior: Clip.antiAlias,
             child: Column(
@@ -743,8 +1083,6 @@ class _RecommendedPackages extends StatelessWidget {
   }
 }
 
-/// Disederhanakan jadi 2 kolom -- Streak pindah ke header (mini, gaya
-/// Duolingo), jadi tidak perlu diulang di sini.
 class _StatsRow extends StatelessWidget {
   const _StatsRow({required this.averageScore, required this.rank});
 
@@ -795,8 +1133,15 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
       decoration: BoxDecoration(
-        color: AppColors.neutral50,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.neutral900.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         children: [
@@ -822,61 +1167,284 @@ class _StatCard extends StatelessWidget {
   }
 }
 
+/// Breakdown per section (TWK/TIU/TKP dst) -- data dari
+/// performance.sections yang SEBELUMNYA di-fetch tapi cuma dipakai di
+/// AnalisisPerformaScreen (versi penuh dengan breakdown topik). Versi di
+/// sini sengaja ringkas (tanpa daftar topik) -- tap kartu untuk lihat
+/// detail penuh, bukan duplikasi seluruh _SectionCard di AnalisisPerforma.
+class _ProgressSectionsRow extends StatelessWidget {
+  const _ProgressSectionsRow({required this.sections});
+  final List<PerformanceSection> sections;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 108,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: sections.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (context, index) => _ProgressSectionCard(section: sections[index]),
+      ),
+    );
+  }
+}
+
+class _ProgressSectionCard extends StatelessWidget {
+  const _ProgressSectionCard({required this.section});
+  final PerformanceSection section;
+
+  @override
+  Widget build(BuildContext context) {
+    // Progress bar: kalau ada ambang lulus, pakai current_score/min_passing
+    // (jadi 100% persis di titik lulus). Kalau tidak ada ambang, fallback
+    // ke current_score/100 -- asumsi skor 0-100, konsisten dengan
+    // penampilan skor lain di layar ini (mis. _StatCard averageScore).
+    final progress = section.minPassingScore != null && section.minPassingScore! > 0
+        ? (section.currentScore / section.minPassingScore!).clamp(0.0, 1.0)
+        : (section.currentScore / 100).clamp(0.0, 1.0);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => context.push('/analisis-performa'),
+      child: Container(
+        width: 148,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.neutral900.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    section.code,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: AppColors.neutral900,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Icon(
+                  section.isPassed ? Icons.check_circle : Icons.schedule,
+                  color: section.isPassed ? AppColors.success600 : AppColors.neutral400,
+                  size: 14,
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 5,
+                backgroundColor: AppColors.neutral100,
+                valueColor: AlwaysStoppedAnimation(
+                  section.isPassed ? AppColors.success600 : AppColors.gold600,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              section.minPassingScore != null
+                  ? '${section.currentScore.toStringAsFixed(0)} / ${section.minPassingScore}'
+                  : section.currentScore.toStringAsFixed(0),
+              style: const TextStyle(color: AppColors.neutral500, fontSize: 11, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Kartu upsell "Upgrade ke Langganan" -- HANYA dirender kalau
+/// BerandaData.subscriptionPlans tidak kosong (artinya user belum
+/// berlangganan aktif, lihat BerandaRepository.getBerandaData()). Plan
+/// yang ditonjolkan: is_featured pertama, fallback plan pertama di list
+/// kalau tidak ada yang featured.
+class _UpgradeLanggananCard extends StatelessWidget {
+  const _UpgradeLanggananCard({required this.plans});
+  final List<SubscriptionPlanModel> plans;
+
+  @override
+  Widget build(BuildContext context) {
+    final featured = plans.firstWhere(
+      (p) => p.isFeatured,
+      orElse: () => plans.first,
+    );
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: () => context.push('/langganan'),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [AppColors.gold600, AppColors.brand600],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.gold600.withOpacity(0.30),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            const _DecorativeCircles(),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.18),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.workspace_premium, color: Colors.white, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'Akses Semua Try Out',
+                        style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    featured.name,
+                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  if (featured.tagline != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      featured.tagline!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12.5, height: 1.4),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        formatRupiah(featured.price),
+                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '/ ${formatDurasi(featured.durationDays)}',
+                        style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12.5),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => context.push('/langganan'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: AppColors.brand700,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: Text(plans.length > 1 ? 'Lihat Semua Paket Langganan' : 'Lihat Detail'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _LeaderboardPreview extends ConsumerWidget {
   const _LeaderboardPreview({required this.rank});
   final int rank;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Sebelumnya kartu ini punya ikon chevron (menyiratkan bisa di-tap)
-    // tapi tidak ada onTap sama sekali -- ditambahkan supaya benar-benar
-    // membawa user ke tab Peringkat, bukan dead UI.
     return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () => ref.read(selectedTabIndexProvider.notifier).state = 2,
       child: Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.neutral50,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.gold600.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.neutral900.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            alignment: Alignment.center,
-            child: const Icon(Icons.leaderboard_outlined, color: AppColors.gold600, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  rank > 0 ? 'Kamu peringkat #$rank minggu ini' : 'Belum masuk peringkat',
-                  style: const TextStyle(
-                    color: AppColors.neutral900,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.gold600.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              alignment: Alignment.center,
+              child: const Icon(Icons.leaderboard_outlined, color: AppColors.gold600, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    rank > 0 ? 'Kamu peringkat #$rank minggu ini' : 'Belum masuk peringkat',
+                    style: const TextStyle(
+                      color: AppColors.neutral900,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Lihat papan peringkat lengkap',
-                  style: TextStyle(color: AppColors.neutral500, fontSize: 12),
-                ),
-              ],
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Lihat papan peringkat lengkap',
+                    style: TextStyle(color: AppColors.neutral500, fontSize: 12),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const Icon(Icons.chevron_right, color: AppColors.neutral400),
-        ],
-      ),
+            const Icon(Icons.chevron_right, color: AppColors.neutral400),
+          ],
+        ),
       ),
     );
   }

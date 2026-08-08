@@ -7,11 +7,13 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../data/exam_repository.dart';
+import '../../data/models/exam_attempt_history_model.dart';
 import '../../data/models/exam_review_model.dart';
 import '../../data/models/exam_summary_model.dart';
 import '../../data/models/my_exam_model.dart';
 import '../../data/models/topic_mastery_model.dart';
 
+export '../../data/models/exam_attempt_history_model.dart';
 export '../../data/models/exam_review_model.dart';
 export '../../data/models/exam_summary_model.dart';
 export '../../data/models/my_exam_model.dart';
@@ -60,4 +62,17 @@ Future<TopicMasteryHistoryModel> topicMasteryHistory(TopicMasteryHistoryRef ref,
 @riverpod
 Future<List<MyExamItem>> myExams(MyExamsRef ref) {
   return ref.watch(examRepositoryProvider).getMyExams();
+}
+
+/// GET /exams/{exam}/attempts -- riwayat SEMUA percobaan (bukan cuma
+/// pertama/terakhir seperti examSummary). Dipakai ExamAttemptHistoryScreen,
+/// di-buka dari link "Lihat Semua Riwayat" di ExamSummaryScreen. [bankId]
+/// opsional untuk try-out multi-bank.
+@riverpod
+Future<ExamAttemptHistoryResponse> examAttemptHistory(
+  ExamAttemptHistoryRef ref,
+  int examId, {
+  int? bankId,
+}) {
+  return ref.watch(examRepositoryProvider).getExamAttempts(examId, bankId: bankId);
 }

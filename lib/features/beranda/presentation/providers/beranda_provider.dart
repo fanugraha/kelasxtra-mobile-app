@@ -33,13 +33,27 @@ class BerandaNotifier extends _$BerandaNotifier {
       recommendedPackages: raw.recommendedPackages,
       promoBanners: raw.promoBanners,
       streakDays: raw.performance.streak.count,
-      // TODO: lihat catatan TODO di model BerandaData -- belum ada sumber
-      // data valid untuk skor rata-rata tunggal.
-      averageScore: 0,
+      averageScore: _averageScoreFrom(raw.performance),
       rank: raw.performance.ranking?.rank ?? 0,
       unreadNotificationCount: raw.unreadNotificationCount,
       performance: raw.performance,
+      subscriptionPlans: raw.subscriptionPlans,
     );
+  }
+
+  /// Skor rata-rata dihitung dari [PerformanceSummary.sections] (rata-rata
+  /// current_score tiap section, mis. TWK/TIU/TKP) -- data ini sudah
+  /// di-fetch buat _StatsRow lama tapi sebelumnya tidak dipakai (hardcoded
+  /// 0 dengan TODO). Section dengan topics locked (access.full=false)
+  /// TETAP dihitung -- current_score section itu sendiri bukan bagian yang
+  /// dikunci, hanya breakdown topik di dalamnya.
+  double _averageScoreFrom(PerformanceSummary performance) {
+    if (performance.sections.isEmpty) return 0;
+    final total = performance.sections.fold<double>(
+      0,
+      (sum, section) => sum + section.currentScore,
+    );
+    return total / performance.sections.length;
   }
 
   /// Dipanggil dari pull-to-refresh di layar Beranda.

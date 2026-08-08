@@ -8,6 +8,8 @@
 //   - GET /my-subscription
 //   - GET /promos/active
 //   - GET /notifications/unread-count
+//   - GET /subscription-plans (KONDISIONAL -- cuma kalau /my-subscription
+//     balikin null/tidak aktif, lihat catatan di getBerandaData())
 //
 // SENGAJA tidak tahu soal user/auth (userName, dsb) -- itu digabung di
 // BerandaNotifier (presentation/), bukan di sini. Tidak ada domain/ layer
@@ -15,15 +17,22 @@
 // tampilan, bukan business logic sendiri).
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../subscription/data/models/subscription_plan_model.dart';
+import '../../subscription/data/repositories/subscription_repository.dart';
 import 'beranda_api_service.dart';
 import 'models/beranda_models.dart';
 
 part 'beranda_repository.g.dart';
 
 class BerandaRepository {
-  BerandaRepository(this._api);
+  BerandaRepository(this._api, this._subscriptionRepository);
 
   final BerandaApiService _api;
+  // Reuse repository modul subscription yang sudah ada (bukan panggilan
+  // API baru dari sisi backend) -- Beranda cuma jadi konsumen kedua dari
+  // GET /subscription-plans, endpoint yang sama persis dipakai
+  // LanggananScreen.
+  final SubscriptionRepository _subscriptionRepository;
 
   Future<BerandaRawData> getBerandaData() async {
     // Semua panggilan independen mulai duluan (Future langsung jalan
@@ -66,6 +75,21 @@ class BerandaRepository {
     final promoBanners = await promosFuture;
     final unreadNotificationCount = await unreadCountFuture;
 
+    // Kartu "Upgrade ke Langganan" di Beranda cuma relevan buat user yang
+    // BELUM punya subscription aktif -- kalau sudah aktif, skip request ini
+    // sepenuhnya (hemat 1 network call, dan memang tidak ada yang perlu
+    // di-upsell). Dibungkus try-catch terpisah supaya kegagalan fetch plan
+    // (mis. endpoint lambat) tidak menggagalkan seluruh layar Beranda --
+    // upsell card cuma hilang, bukan error state penuh.
+    var subscriptionPlans = const <SubscriptionPlanModel>[];
+    if (subscription?.isActive != true) {
+      try {
+        subscriptionPlans = await _subscriptionRepository.getPlans();
+      } catch (_) {
+        subscriptionPlans = const <SubscriptionPlanModel>[];
+      }
+    }
+
     return BerandaRawData(
       recommendedPackages: recommendedPackages,
       continueExam: continueExam,
@@ -73,6 +97,7 @@ class BerandaRepository {
       subscription: subscription,
       promoBanners: promoBanners,
       unreadNotificationCount: unreadNotificationCount,
+      subscriptionPlans: subscriptionPlans,
     );
   }
 
@@ -110,5 +135,8 @@ class BerandaRepository {
 
 @riverpod
 BerandaRepository berandaRepository(BerandaRepositoryRef ref) {
-  return BerandaRepository(ref.watch(berandaApiServiceProvider));
+  return BerandaRepository(
+    ref.watch(berandaApiServiceProvider),
+    ref.watch(subscriptionRepositoryProvider),
+  );
 }

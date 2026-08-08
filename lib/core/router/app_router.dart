@@ -19,6 +19,7 @@ import '../../features/katalog/presentation/screens/katalog_screen.dart';
 import '../../features/katalog/presentation/screens/tryout_screen.dart';
 import '../../features/kelas_materi/presentation/screens/kelas_detail_screen.dart';
 import '../../features/kelas_materi/presentation/screens/kelas_list_screen.dart';
+import '../../features/exam_engine/presentation/screens/exam_attempt_history_screen.dart';
 import '../../features/exam_engine/presentation/screens/exam_attempt_screen.dart';
 import '../../features/exam_engine/presentation/screens/exam_list_screen.dart';
 import '../../features/exam_engine/presentation/screens/exam_review_screen.dart';
@@ -220,6 +221,13 @@ GoRouter goRouter(GoRouterRef ref) {
         builder: (context, state) {
           final examId = int.parse(state.pathParameters['examId']!);
           return ExamSummaryScreen(examId: examId);
+        },
+      ),
+      GoRoute(
+        path: '/exams/:examId/attempts',
+        builder: (context, state) {
+          final examId = int.parse(state.pathParameters['examId']!);
+          return ExamAttemptHistoryScreen(examId: examId);
         },
       ),
       GoRoute(

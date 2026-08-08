@@ -8,6 +8,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/constants/api_endpoints.dart';
 import '../../../core/network/dio_client.dart';
+import 'models/exam_attempt_history_model.dart';
 import 'models/exam_attempt_model.dart';
 import 'models/exam_review_model.dart';
 import 'models/exam_summary_model.dart';
@@ -167,6 +168,19 @@ class ExamApiService {
     final response = await _dio.get(ApiEndpoints.myExams);
     final data = response.data as List<dynamic>;
     return data.map((json) => MyExamItem.fromJson(json as Map<String, dynamic>)).toList();
+  }
+
+  /// GET /exams/{exam}/attempts -- riwayat SEMUA percobaan yang sudah
+  /// selesai untuk exam ini (beda dari getExamSummary yang cuma balikin
+  /// percobaan pertama & terakhir). Lihat catatan lengkap di
+  /// [ExamAttemptHistoryResponse]. [bankId] opsional untuk try-out
+  /// multi-bank, pola sama seperti getExamSummary.
+  Future<ExamAttemptHistoryResponse> getExamAttempts(int examId, {int? bankId}) async {
+    final response = await _dio.get(
+      ApiEndpoints.examAttempts(examId),
+      queryParameters: bankId != null ? {'bank_id': bankId} : null,
+    );
+    return ExamAttemptHistoryResponse.fromJson(response.data as Map<String, dynamic>);
   }
 }
 
